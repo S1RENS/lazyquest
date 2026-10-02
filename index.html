@@ -1,0 +1,4781 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LazyQuest</title>
+<meta name="description" content="Learn LazyVim keybindings by playing: flash, mini.surround, mini.ai and more.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:ital,wght@0,400;0,700;0,800;1,400&family=Silkscreen&display=swap">
+<style>
+/* Layout: a single editor "world" framed like a terminal; quest panel to the right, stacks below on narrow screens.
+   Deliberately single dark theme — tokyonight-night, LazyVim's default colourscheme. */
+:root {
+  color-scheme: dark;
+  --void: #0e0e15;
+  --bg: #1a1b26;
+  --bg-dark: #16161e;
+  --bg-float: #1f2335;
+  --bg-hl: #292e42;
+  --bg-visual: #283457;
+  --fg: #c0caf5;
+  --fg-dim: #a9b1d6;
+  --muted: #737aa2;
+  --comment: #565f89;
+  --gutter: #3b4261;
+  --border: #27a1b9;
+  --blue: #7aa2f7;
+  --cyan: #7dcfff;
+  --purple: #bb9af7;
+  --magenta: #ff007c;
+  --green: #9ece6a;
+  --orange: #ff9e64;
+  --yellow: #e0af68;
+  --red: #f7768e;
+  --teal: #1abc9c;
+  --match: #3d59a1;
+  --gold: #ffc777;
+  --font-display: 'Silkscreen', 'JetBrains Mono', ui-monospace, monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-body: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --cell: 1.55em;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--void);
+  background-image: radial-gradient(circle at 1px 1px, #1d1f2e 1px, transparent 0);
+  background-size: 22px 22px;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.app { min-height: 100%; padding-inline: 16px; padding-block: 18px; max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── top bar ── */
+.topbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.brand { font-family: var(--font-display); font-size: 18px; letter-spacing: 0.04em; color: var(--fg); background: none; border: 0; padding: 0; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.brand .blk { display: inline-block; width: 0.62em; height: 1.05em; background: var(--blue); animation: blink 1.1s steps(1) infinite; }
+.crumb { color: var(--muted); font-family: var(--font-mono); font-size: 13px; }
+.crumb b { color: var(--fg); font-weight: 600; }
+.spacer { flex: 1; }
+.btn { background: var(--bg-hl); border: 1px solid #3b4261; color: var(--fg); border-radius: 6px; padding: 5px 11px; cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--blue); }
+.btn.primary { background: var(--blue); color: var(--bg-dark); border-color: var(--blue); font-weight: 700; }
+.btn kbd { font-size: 11px; opacity: 0.75; }
+.meter { font-family: var(--font-mono); font-size: 13px; display: flex; gap: 12px; align-items: center; font-variant-numeric: tabular-nums; }
+.meter .keys b { color: var(--fg); }
+.meter .keys { color: var(--muted); }
+.stars { color: var(--gold); letter-spacing: 2px; }
+.stars .off { color: var(--gutter); }
+
+/* ── level layout ── */
+.level { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+@media (max-width: 900px) { .level { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── editor ── */
+.editor:focus { outline: none; box-shadow: 0 20px 60px -20px #000, 0 0 0 1px var(--blue); }
+.editor { position: relative; background: var(--bg); border: 1px solid #101014; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 60px -20px #000, 0 0 0 1px #24283b; font-family: var(--font-mono); font-size: 14.5px; line-height: var(--cell); min-width: 0; }
+.bufferline { display: flex; background: var(--bg-dark); border-bottom: 1px solid #101014; font-size: 12.5px; overflow-x: auto; }
+.bufferline .tab { padding: 4px 14px; color: var(--comment); border-right: 1px solid #101014; white-space: nowrap; }
+.bufferline .tab.on { color: var(--fg); background: var(--bg); box-shadow: inset 0 2px 0 var(--blue); }
+.bufferline .tab .dot { color: var(--orange); margin-left: 6px; }
+.bufferline .ghost { padding: 4px 14px; color: var(--gutter); font-style: italic; }
+.buffer { padding: 6px 0 10px; min-height: 340px; max-height: 62vh; overflow: auto; position: relative; }
+.row { display: flex; white-space: pre; min-height: var(--cell); }
+.row.curline { background: var(--bg-hl); }
+.gutter { width: 3.6em; flex: none; text-align: right; padding-right: 0.9em; color: var(--gutter); user-select: none; font-variant-numeric: tabular-nums; }
+.row.curline .gutter { color: var(--orange); text-align: left; padding-left: 0.7em; font-weight: 700; }
+.sign { width: 1.3em; flex: none; text-align: center; user-select: none; }
+.sign.err { color: var(--red); }
+.text { flex: none; }
+.vt { color: var(--red); padding-left: 2.4em; opacity: 0.9; font-size: 0.92em; }
+.vt.warn { color: var(--yellow); }
+.c { position: relative; }
+.t-kw { color: var(--purple); font-style: italic; }
+.t-str { color: var(--green); }
+.t-num { color: var(--orange); }
+.t-com { color: var(--comment); font-style: italic; }
+.t-fn { color: var(--blue); }
+.t-prop { color: var(--teal); }
+.t-op { color: #89ddff; }
+.t-brk { color: #a9b1d6; }
+.t-head { color: var(--blue); font-weight: 700; }
+.t-punc { color: var(--orange); }
+.t-err { color: var(--red); font-weight: 700; }
+.t-warn { color: var(--yellow); }
+.t-info { color: var(--cyan); }
+.sel { background: var(--bg-visual); }
+.srch { background: var(--match); color: var(--fg); }
+.diag { text-decoration: underline wavy var(--red); text-underline-offset: 3px; }
+.gem { color: #1a1b26 !important; background: radial-gradient(circle at 50% 45%, #fff3c4 0%, var(--gold) 45%, #d9902f 100%); border-radius: 3px; box-shadow: 0 0 10px #ffc77788; font-style: normal; animation: gem 1.6s ease-in-out infinite; }
+.gem.blank::before { content: '◆'; position: absolute; left: 0; right: 0; text-align: center; font-size: 0.8em; }
+.cur { background: var(--fg); color: var(--bg) !important; border-radius: 1px; }
+.cur.gem { outline: 2px solid var(--fg); }
+.cur.ins { background: none; color: inherit !important; box-shadow: inset 2px 0 0 var(--fg); }
+.cur.idle { animation: blink 1.1s steps(1) infinite; }
+.flash-on .text .c:not(.fm):not(.fl) { color: #545c7e !important; }
+.fm { background: var(--match); color: var(--fg) !important; }
+.fl { background: var(--magenta); color: #fff !important; font-weight: 800; }
+.tsl { background: var(--magenta); color: #fff; font-weight: 800; padding: 0 2px; border-radius: 2px; margin: 0 1px; }
+.tsr { background: #ff007c22; }
+
+.statusline { display: flex; align-items: stretch; background: var(--bg-dark); font-size: 12.5px; border-top: 1px solid #101014; min-height: 24px; }
+.statusline > span { padding: 2px 10px; display: flex; align-items: center; white-space: nowrap; }
+.mode { font-weight: 800; color: var(--bg-dark); letter-spacing: 0.05em; }
+.m-normal { background: var(--blue); }
+.m-insert { background: var(--green); }
+.m-visual, .m-vline { background: var(--purple); }
+.m-command { background: var(--yellow); }
+.m-pending { background: var(--cyan); }
+.sl-file { color: var(--fg-dim); background: var(--bg-hl); }
+.sl-fill { flex: 1; }
+.sl-cmd { color: var(--orange); }
+.sl-rec { color: var(--red); font-weight: 700; }
+.sl-pos { color: var(--bg-dark); background: var(--blue); font-weight: 700; font-variant-numeric: tabular-nums; }
+.cmdrow { min-height: 24px; padding: 2px 12px; font-size: 13px; color: var(--fg-dim); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+.cmdrow.err { color: var(--red); }
+
+/* floats */
+.float { position: absolute; background: var(--bg-float); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 12px 40px -8px #000c; z-index: 5; }
+.float .ttl { position: absolute; top: -0.8em; left: 12px; background: var(--bg-float); color: var(--border); padding: 0 6px; font-size: 12px; line-height: 1.4; }
+.noice { left: 50%; top: 22%; transform: translateX(-50%); width: min(560px, 86%); padding: 8px 12px; font-size: 14px; }
+.noice .icon { color: var(--yellow); margin-right: 8px; font-weight: 700; }
+.cmdrow .caret, .float .caret { display: inline-block; width: 0.6em; height: 1.1em; vertical-align: -0.15em; background: var(--fg); animation: blink 1.1s steps(1) infinite; }
+.noice.search .icon { color: var(--cyan); }
+.noice.search { border-color: var(--yellow); }
+.noice.search .ttl { color: var(--yellow); }
+.flashp { left: 0; right: 0; bottom: 50px; margin: 0 auto; width: max-content; padding: 2px 12px; border-color: var(--magenta); font-size: 13px; }
+.whichkey { left: 10px; right: 10px; bottom: 54px; padding: 12px 14px 8px; font-size: 12.5px; line-height: 1.6; }
+.whichkey .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 0 18px; }
+.whichkey .it { display: flex; gap: 10px; min-width: 0; }
+.whichkey .k { color: var(--yellow); font-weight: 700; min-width: 3.2em; text-align: right; flex: none; }
+.whichkey .d { color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.whichkey .d.grp { color: var(--purple); }
+.whichkey .dim { opacity: 0.35; }
+.whichkey .foot { margin-top: 6px; color: var(--comment); font-size: 11px; }
+.picker { left: 50%; top: 10%; transform: translateX(-50%); width: min(720px, 92%); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); font-size: 13px; }
+@media (max-width: 560px) { .picker { grid-template-columns: minmax(0, 1fr); } .picker .pv { display: none; } }
+.picker .pl { border-right: 1px solid #3b4261; min-width: 0; }
+.picker .in { padding: 8px 12px; border-bottom: 1px solid #3b4261; color: var(--fg); }
+.picker .in .p { color: var(--cyan); margin-right: 8px; }
+.picker ul { list-style: none; margin: 0; padding: 4px 0; max-height: 240px; overflow: auto; }
+.picker li { padding: 1px 12px; color: var(--fg-dim); white-space: nowrap; }
+.picker li.on { background: var(--bg-hl); color: var(--fg); box-shadow: inset 2px 0 0 var(--cyan); }
+.picker li .hl { color: var(--cyan); font-weight: 700; }
+.picker .pv { padding: 8px 12px; white-space: pre; color: var(--fg-dim); overflow: hidden; font-size: 12px; min-height: 160px; }
+.popup { padding: 6px 10px; font-size: 12.5px; max-width: 70%; white-space: normal; }
+.popup.err { border-color: var(--red); }
+.notify { right: 10px; top: 40px; padding: 8px 12px; font-size: 12.5px; border-color: var(--green); max-width: 60%; animation: fadeout 3.2s forwards; }
+.notify.err { border-color: var(--red); }
+.toast { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); background: var(--bg-dark); border: 1px solid var(--red); color: var(--fg); padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 8; animation: fadeout 1.8s forwards; pointer-events: none; }
+.toast b { color: var(--red); }
+.sparkle { position: absolute; color: var(--gold); font-weight: 800; pointer-events: none; z-index: 6; animation: rise 0.9s ease-out forwards; text-shadow: 0 0 8px #ffc777; }
+.focuscover { position: absolute; inset: 0; background: #0e0e15cc; display: flex; align-items: center; justify-content: center; z-index: 9; cursor: pointer; font-family: var(--font-display); font-size: 15px; color: var(--fg); text-align: center; padding: 20px; }
+
+/* ── quest panel ── */
+.panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card { background: var(--bg-dark); border: 1px solid #24283b; border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.card h3 { margin: 0 0 8px; font-family: var(--font-display); font-weight: 400; font-size: 12px; letter-spacing: 0.08em; color: var(--comment); text-transform: uppercase; }
+.lvtitle { font-family: var(--font-display); font-size: 20px; line-height: 1.2; margin: 0 0 6px; color: var(--fg); text-wrap: balance; }
+.speaker { display: flex; gap: 10px; align-items: flex-start; }
+.owl { flex: none; width: 34px; height: 34px; image-rendering: pixelated; }
+.story { color: var(--fg-dim); margin: 0; max-width: 65ch; }
+.goal { margin: 10px 0 0; padding: 8px 10px; border-radius: 6px; background: #1abc9c14; border: 1px solid #1abc9c44; color: var(--fg); font-size: 14px; }
+.goal b { color: var(--teal); font-family: var(--font-display); font-weight: 400; font-size: 11px; letter-spacing: 0.06em; margin-right: 6px; }
+.teach { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: baseline; }
+.kc { font-family: var(--font-mono); font-size: 12.5px; background: var(--bg-hl); border: 1px solid #3b4261; border-bottom-width: 2px; border-radius: 5px; padding: 0 6px; color: var(--yellow); white-space: nowrap; }
+.teach .d { color: var(--fg-dim); font-size: 13.5px; }
+.sealed { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+.sealed .kc { color: var(--red); text-decoration: line-through; }
+.target pre { margin: 0; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55; overflow-x: auto; }
+.target .ln { display: block; padding-left: 1.4em; position: relative; white-space: pre; }
+.target .ln::before { position: absolute; left: 0; content: '·'; color: var(--gutter); }
+.target .ln.ok { color: var(--green); }
+.target .ln.ok::before { content: '✓'; color: var(--green); }
+.target .ln.bad { color: var(--fg); }
+.target .ln.bad::before { content: '✗'; color: var(--red); }
+.target .fname { color: var(--comment); font-size: 11.5px; margin: 6px 0 2px; font-family: var(--font-mono); }
+.gemcount { font-family: var(--font-mono); font-size: 13px; color: var(--fg-dim); }
+.gemcount .g { color: var(--gold); }
+.gemcount .g.off { color: var(--gutter); }
+.helprow { display: flex; gap: 8px; flex-wrap: wrap; }
+.hinttext { margin: 10px 0 0; color: var(--fg-dim); font-size: 13.5px; }
+.solution { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ── title ── */
+.title { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px; align-items: center; padding-block: 4vh 2vh; }
+@media (max-width: 860px) { .title { grid-template-columns: minmax(0, 1fr); } }
+.logo { font-family: var(--font-display); font-size: clamp(44px, 8vw, 92px); line-height: 0.95; margin: 0; letter-spacing: 0.01em; }
+.logo .z { color: var(--blue); }
+.logo .q { color: var(--fg); }
+.tag { font-size: 18px; color: var(--fg-dim); max-width: 46ch; margin: 18px 0 22px; }
+.tag b { color: var(--cyan); font-weight: 600; }
+.cta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.cta .btn { font-size: 14px; padding: 8px 16px; }
+.settings { margin-top: 22px; display: flex; flex-direction: column; gap: 8px; color: var(--fg-dim); font-size: 14px; }
+.settings label { display: flex; gap: 10px; align-items: center; cursor: pointer; }
+.settings input { accent-color: var(--blue); width: 16px; height: 16px; }
+.settings small { color: var(--comment); }
+.demo { font-family: var(--font-mono); font-size: 14px; background: var(--bg); border-radius: 10px; box-shadow: 0 20px 60px -20px #000, 0 0 0 1px #24283b; overflow: hidden; }
+.demo .row { padding-right: 12px; }
+.note { color: var(--comment); font-size: 13px; margin-top: 14px; max-width: 60ch; }
+
+/* ── map ── */
+.map { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 14px; }
+.chapter { background: var(--bg-dark); border: 1px solid #24283b; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.chapter .cn { font-family: var(--font-display); font-size: 11px; color: var(--comment); letter-spacing: 0.08em; }
+.chapter h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 17px; color: var(--fg); }
+.chapter p { margin: 0; color: var(--muted); font-size: 13.5px; }
+.tiles { display: flex; flex-direction: column; gap: 6px; }
+.tile { display: grid; grid-template-columns: 2.6em 1fr auto; gap: 8px; align-items: center; text-align: left; background: var(--bg); border: 1px solid #24283b; border-radius: 7px; padding: 6px 10px; cursor: pointer; font-size: 13.5px; }
+.tile .id { font-family: var(--font-mono); color: var(--comment); font-size: 12px; }
+.tile .nm { color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .stars { font-size: 12px; }
+.tile.locked { opacity: 0.45; cursor: not-allowed; }
+.tile.sel { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue), 0 0 18px -4px var(--blue); }
+.tile.done .id { color: var(--green); }
+.maphead { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.maphead h1 { font-family: var(--font-display); font-weight: 400; font-size: 24px; margin: 0; }
+.maphead .sub { color: var(--muted); font-size: 14px; }
+
+/* ── codex ── */
+.codex { columns: 3 260px; column-gap: 14px; }
+.codex .card { break-inside: avoid; margin-bottom: 14px; }
+.codex .locked { opacity: 0.35; }
+
+/* ── modal ── */
+.modal { position: fixed; inset: 0; background: #0e0e15d9; display: flex; align-items: center; justify-content: center; z-index: 20; padding: 16px; }
+.win { background: var(--bg-dark); border: 1px solid var(--gold); border-radius: 14px; padding: 26px 30px; width: min(460px, 100%); text-align: center; box-shadow: 0 0 80px -20px #ffc77766; animation: pop 0.35s ease-out; }
+.win h2 { font-family: var(--font-display); font-weight: 400; font-size: 26px; margin: 0 0 6px; color: var(--gold); }
+.win .bigstars { font-size: 40px; letter-spacing: 8px; color: var(--gold); }
+.win .bigstars .off { color: var(--gutter); }
+.win p { color: var(--fg-dim); margin: 8px 0; }
+.win .learned { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 12px 0 18px; }
+.win .row2 { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+.mobile-note { display: none; background: var(--bg-dark); border: 1px solid var(--yellow); color: var(--fg); border-radius: 8px; padding: 8px 12px; font-size: 13.5px; }
+@media (pointer: coarse) and (max-width: 820px) { .mobile-note { display: block; } }
+
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes gem { 0%, 100% { box-shadow: 0 0 6px #ffc77766; } 50% { box-shadow: 0 0 14px #ffc777cc; } }
+@keyframes fadeout { 0%, 75% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+@keyframes rise { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-26px); opacity: 0; } }
+@keyframes pop { from { transform: scale(0.92); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before { animation: none !important; transition: none !important; }
+}
+
+</style>
+</head>
+<body>
+<main class="app" id="app"></main>
+<script>
+/* LazyQuest editor engine — a small, testable Vim + LazyVim emulator.
+   Keys are strings: printable chars as themselves, specials as <Esc> <CR> <BS> <Tab> <C-r> <A-j> ...
+   Leader is a literal space " ". */
+(function (G) {
+  'use strict';
+
+  const isWS = (ch) => ch === ' ' || ch === '\t';
+  const isKW = (ch) => ch !== undefined && /[A-Za-z0-9_]/.test(ch);
+  function cls(ch, big) {
+    if (ch === undefined || isWS(ch)) return 0;
+    if (big) return 1;
+    return isKW(ch) ? 2 : 1;
+  }
+  const indentOf = (s) => s.match(/^\s*/)[0];
+  const fnbCol = (s) => {
+    const m = s.search(/\S/);
+    return m < 0 ? Math.max(0, s.length - 1) : m;
+  };
+  const OPEN = { '(': ')', '[': ']', '{': '}', '<': '>' };
+  const CLOSE = { ')': '(', ']': '[', '}': '{', '>': '<' };
+  const QUOTES = '"\'`';
+  const LABELS = 'asdfghjklqwertyuiopzxcvbnm';
+  const FT = { js: 'javascript', ts: 'typescript', lua: 'lua', py: 'python', sh: 'sh', md: 'markdown', txt: 'text', toml: 'toml', log: 'log', csv: 'text' };
+  const COMMENT = { javascript: '//', typescript: '//', lua: '--', python: '#', sh: '#', text: '#', markdown: '>', toml: '#', log: '#' };
+  const ftOf = (name) => FT[(name.split('.').pop() || '').toLowerCase()] || 'text';
+
+  // Convert a (magic) Vim regex into a JS RegExp source.
+  function vimRe(p) {
+    let out = '';
+    for (let i = 0; i < p.length; i++) {
+      const ch = p[i];
+      if (ch === '\\' && i + 1 < p.length) {
+        const n = p[++i];
+        if (n === '<' || n === '>') out += '\\b';
+        else if ('()|+?={}'.includes(n)) out += n === '=' ? '?' : n;
+        else out += '\\' + n;
+      } else if ('()|+?{}'.includes(ch)) out += '\\' + ch;
+      else out += ch;
+    }
+    return out;
+  }
+  function vimRep(r) {
+    let out = '';
+    for (let i = 0; i < r.length; i++) {
+      const ch = r[i];
+      if (ch === '\\' && i + 1 < r.length) {
+        const n = r[++i];
+        if (/[0-9]/.test(n)) out += n === '0' ? '$&' : '$' + n;
+        else if (n === 'r' || n === 'n') out += '\n';
+        else if (n === 't') out += '\t';
+        else out += n === '$' ? '$$' : n;
+      } else if (ch === '&') out += '$&';
+      else if (ch === '$') out += '$$';
+      else out += ch;
+    }
+    return out;
+  }
+  function makeRe(pat, flags) {
+    const icase = pat === pat.toLowerCase();
+    try {
+      return new RegExp(vimRe(pat), (flags === undefined ? 'g' : flags.replace('i', '')) + (icase || (flags || '').includes('i') ? 'i' : ''));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  class Buffer {
+    constructor(name, text, ft) {
+      this.name = name;
+      this.lines = text.split('\n');
+      this.r = 0;
+      this.c = 0;
+      this.want = 0;
+      this.undo = [];
+      this.redo = [];
+      this.ft = ft || ftOf(name);
+    }
+    text() {
+      return this.lines.join('\n');
+    }
+  }
+
+  class Vim {
+    constructor(opts) {
+      opts = opts || {};
+      const files = opts.files || [{ name: 'scratch.txt', text: opts.text || '' }];
+      this.files = files.map((f) => {
+        const b = new Buffer(f.name, f.text, f.ft);
+        if (f.cursor) {
+          b.r = f.cursor[0];
+          b.c = f.cursor[1];
+          b.want = b.c;
+        }
+        return b;
+      });
+      this.open = this.files.filter((b, i) => i === 0 || files[i].open !== false);
+      this.buf = this.open[0];
+      this.alt = null;
+      this.mode = 'normal';
+      this.regs = { '"': { text: '', line: false } };
+      this.macros = {};
+      this.lastMacro = null;
+      this.recording = null;
+      this.lastFind = null;
+      this.charActive = false;
+      this.lastSearch = null;
+      this.hl = false;
+      this.lastChange = null;
+      this.queue = [];
+      this.busy = false;
+      this.gen = null;
+      this.ctx = 'cmd';
+      this.msg = '';
+      this.msgErr = false;
+      this.cmdline = null;
+      this.flash = null;
+      this.tsnodes = null;
+      this.vis = null;
+      this.picker = null;
+      this.popup = null;
+      this.jumps = [];
+      this.jumpFwd = [];
+      this.events = [];
+      this.diagDefs = opts.diagnostics || [];
+      this.hover = opts.hover || {};
+      this.jk = !!opts.jk;
+      this.pairs = opts.pairs !== false;
+      this.curKeys = [];
+      this.columns = 80;
+    }
+
+    // ---------- basic accessors ----------
+    get L() {
+      return this.buf.lines;
+    }
+    text() {
+      return this.buf.lines.join('\n');
+    }
+    setText(t) {
+      this.buf.lines = t.split('\n');
+    }
+    off(r, c) {
+      const L = this.L;
+      let o = 0;
+      for (let i = 0; i < r; i++) o += L[i].length + 1;
+      return o + c;
+    }
+    pos(o) {
+      const L = this.L;
+      let r = 0;
+      while (r < L.length - 1 && o > L[r].length) {
+        o -= L[r].length + 1;
+        r++;
+      }
+      return { r, c: Math.min(o, L[r].length) };
+    }
+    get cur() {
+      return { r: this.buf.r, c: this.buf.c };
+    }
+    setCur(r, c, keepWant) {
+      const L = this.L;
+      r = Math.max(0, Math.min(L.length - 1, r));
+      const max = this.mode === 'insert' ? L[r].length : Math.max(0, L[r].length - 1);
+      c = Math.max(0, Math.min(max, c));
+      this.buf.r = r;
+      this.buf.c = c;
+      if (!keepWant) this.buf.want = c;
+    }
+    wantCol(r) {
+      return Math.min(this.buf.want, Math.max(0, this.L[r].length - 1));
+    }
+    say(m, err) {
+      this.msg = m;
+      this.msgErr = !!err;
+    }
+    emit(ev) {
+      this.events.push(ev);
+    }
+
+    // ---------- key loop ----------
+    feed(key, src) {
+      this.queue.push([key, src || 'user']);
+      if (this.busy) return;
+      this.busy = true;
+      try {
+        let guard = 0;
+        while (this.queue.length && guard++ < 20000) {
+          const [k, s] = this.queue.shift();
+          this.step(k, s);
+        }
+        if (this.queue.length) {
+          this.queue = [];
+          this.say('E: macro recursion stopped', true);
+        }
+      } finally {
+        this.busy = false;
+      }
+    }
+    feedAll(keys, src) {
+      for (const k of keys) this.feed(k, src);
+    }
+    begin() {
+      this.snap = { buf: this.buf, lines: this.L.slice(), r: this.buf.r, c: this.buf.c };
+      this.curKeys = [];
+      this.cmdSrc = null;
+      this.noUndo = false;
+      this.gen = this.normalCmd();
+      const r = this.gen.next();
+      this.ctx = r.value || 'cmd';
+    }
+    step(key, src) {
+      if (!this.gen) this.begin();
+      if (this.recording && src === 'user') this.recording.keys.push(key);
+      if (src === 'dot') this.cmdSrc = 'dot';
+      this.curKeys.push(key);
+      let res;
+      try {
+        res = this.gen.next(key);
+      } catch (e) {
+        if (typeof console !== 'undefined') console.error(e);
+        this.say('E: ' + e.message, true);
+        res = { done: true };
+        this.mode = 'normal';
+        this.vis = this.flash = this.cmdline = this.picker = this.tsnodes = null;
+      }
+      if (res.done) this.finish();
+      else this.ctx = res.value || 'cmd';
+    }
+    finish() {
+      const s = this.snap;
+      const changed = s.buf.lines.length !== s.lines.length || s.buf.lines.join('\n') !== s.lines.join('\n');
+      if (changed && !this.noUndo) {
+        s.buf.undo.push({ lines: s.lines, r: s.r, c: s.c });
+        if (s.buf.undo.length > 500) s.buf.undo.shift();
+        s.buf.redo = [];
+        if (this.cmdSrc !== 'dot') this.lastChange = this.curKeys.slice();
+      }
+      this.gen = null;
+      this.ctx = 'cmd';
+      this.mode = 'normal';
+      this.vis = null;
+      this.flash = null;
+      this.tsnodes = null;
+      this.cmdline = null;
+      this.picker = null;
+      this.setCur(this.buf.r, this.buf.c, true);
+    }
+    get pending() {
+      return this.gen && this.mode === 'normal' && !this.cmdline && !this.flash ? this.curKeys.join('') : '';
+    }
+
+    // ---------- registers ----------
+    setReg(name, text, line, yank) {
+      if (name === '_') return;
+      const v = { text, line: !!line };
+      if (name && /[a-z]/.test(name)) this.regs[name] = v;
+      if (name && /[A-Z]/.test(name)) {
+        const o = this.regs[name.toLowerCase()] || { text: '', line: false };
+        this.regs[name.toLowerCase()] = { text: o.text + (line ? '\n' : '') + text, line: o.line || line };
+      }
+      this.regs['"'] = v;
+      if (yank && !name) this.regs['0'] = v;
+    }
+    getReg(name) {
+      return this.regs[name || '"'] || null;
+    }
+
+    // ---------- undo ----------
+    undo(n) {
+      const b = this.buf;
+      let done = 0;
+      for (let i = 0; i < n && b.undo.length; i++, done++) {
+        const u = b.undo.pop();
+        b.redo.push({ lines: b.lines.slice(), r: b.r, c: b.c });
+        b.lines = u.lines.slice();
+        this.setCur(u.r, u.c);
+      }
+      this.say(done ? `${done} change${done > 1 ? 's' : ''}; undone` : 'Already at oldest change');
+    }
+    redoN(n) {
+      const b = this.buf;
+      let done = 0;
+      for (let i = 0; i < n && b.redo.length; i++, done++) {
+        const u = b.redo.pop();
+        b.undo.push({ lines: b.lines.slice(), r: b.r, c: b.c });
+        b.lines = u.lines.slice();
+        this.setCur(u.r, u.c);
+      }
+      this.say(done ? `${done} change${done > 1 ? 's' : ''}; redone` : 'Already at newest change');
+    }
+
+    // ---------- word motions ----------
+    wordFwd(p, big, forOp) {
+      const L = this.L;
+      let { r, c } = p;
+      let line = L[r];
+      const k = cls(line[c], big);
+      if (k !== 0) while (c < line.length && cls(line[c], big) === k) c++;
+      for (;;) {
+        if (c >= line.length) {
+          if (r >= L.length - 1) return { r, c: forOp ? line.length : Math.max(0, line.length - 1), end: true };
+          r++;
+          c = 0;
+          line = L[r];
+          if (line.length === 0) return { r, c };
+          continue;
+        }
+        if (cls(line[c], big) === 0) {
+          c++;
+          continue;
+        }
+        return { r, c };
+      }
+    }
+    // `w` as the last count of an operator: stop at the end of the line (Vim's fwd_word eol rule)
+    wordFwdEol(p, big) {
+      const L = this.L;
+      let { r, c } = p;
+      let line = L[r];
+      if (line.length === 0) return r >= L.length - 1 ? { r, c: 0 } : { r: r + 1, c: 0 };
+      const k = cls(line[c], big);
+      if (k !== 0) while (c < line.length && cls(line[c], big) === k) c++;
+      if (c >= line.length) return { r, c: line.length };
+      while (c < line.length && cls(line[c], big) === 0) c++;
+      return { r, c };
+    }
+    wordEnd(p, big) {
+      const L = this.L;
+      let { r, c } = p;
+      let line = L[r];
+      c++;
+      for (;;) {
+        if (c >= line.length) {
+          if (r >= L.length - 1) return { r, c: Math.max(0, line.length - 1) };
+          r++;
+          c = 0;
+          line = L[r];
+          continue;
+        }
+        if (cls(line[c], big) === 0) {
+          c++;
+          continue;
+        }
+        break;
+      }
+      const k = cls(line[c], big);
+      while (c + 1 < line.length && cls(line[c + 1], big) === k) c++;
+      return { r, c };
+    }
+    wordBack(p, big) {
+      const L = this.L;
+      let { r, c } = p;
+      let line = L[r];
+      c--;
+      for (;;) {
+        if (c < 0) {
+          if (r === 0) return { r: 0, c: 0 };
+          r--;
+          line = L[r];
+          c = line.length - 1;
+          if (line.length === 0) return { r, c: 0 };
+          continue;
+        }
+        if (cls(line[c], big) === 0) {
+          c--;
+          continue;
+        }
+        break;
+      }
+      const k = cls(line[c], big);
+      while (c > 0 && cls(line[c - 1], big) === k) c--;
+      return { r, c };
+    }
+    wordEndBack(p, big) {
+      const L = this.L;
+      let { r, c } = p;
+      let line = L[r];
+      const k0 = cls(line[c], big);
+      if (k0 !== 0) while (c >= 0 && cls(line[c], big) === k0) c--;
+      for (;;) {
+        if (c < 0) {
+          if (r === 0) return { r: 0, c: 0 };
+          r--;
+          line = L[r];
+          c = line.length - 1;
+          if (line.length === 0) return { r, c: 0 };
+          continue;
+        }
+        if (cls(line[c], big) === 0) {
+          c--;
+          continue;
+        }
+        return { r, c };
+      }
+    }
+
+    // ---------- char find (flash char mode: multi-line, clever-f) ----------
+    findChar(k, ch, n, repeat) {
+      const L = this.L;
+      let { r, c } = this.cur;
+      const fwd = k === 'f' || k === 't';
+      const till = k === 't' || k === 'T';
+      let res = null;
+      for (let i = 0; i < n; i++) {
+        let rr = r,
+          cc = c + (fwd ? 1 : -1);
+        if (till && (repeat || i > 0)) cc += fwd ? 1 : -1;
+        let found = null;
+        while (rr >= 0 && rr < L.length) {
+          const line = L[rr];
+          if (fwd) {
+            const j = line.indexOf(ch, Math.max(0, cc));
+            if (j >= 0) {
+              found = { r: rr, c: j };
+              break;
+            }
+            rr++;
+            cc = 0;
+          } else {
+            const j = cc < 0 ? -1 : line.lastIndexOf(ch, cc);
+            if (j >= 0) {
+              found = { r: rr, c: j };
+              break;
+            }
+            rr--;
+            if (rr >= 0) cc = L[rr].length - 1;
+          }
+        }
+        if (!found) break;
+        r = found.r;
+        c = found.c;
+        res = found;
+        if (till) {
+          c += fwd ? -1 : 1;
+          res = { r, c };
+        }
+      }
+      if (!res) return null;
+      if (res.c < 0) res.c = 0;
+      return { r: res.r, c: res.c, type: fwd ? 'incl' : 'excl' };
+    }
+
+    // ---------- pairs / brackets ----------
+    bracketPairs(types) {
+      const t = this.text();
+      const stacks = {};
+      const out = [];
+      for (let i = 0; i < t.length; i++) {
+        const ch = t[i];
+        if (types.includes(ch) && OPEN[ch]) (stacks[ch] = stacks[ch] || []).push(i);
+        else if (CLOSE[ch] && types.includes(CLOSE[ch])) {
+          const st = stacks[CLOSE[ch]];
+          if (st && st.length) out.push({ o: st.pop(), c: i, ch: CLOSE[ch] });
+        }
+      }
+      return out;
+    }
+    quotePairs(q) {
+      const out = [];
+      let o = 0;
+      for (const line of this.L) {
+        let open = -1;
+        for (let i = 0; i < line.length; i++) {
+          if (line[i] === q && line[i - 1] !== '\\') {
+            if (open < 0) open = i;
+            else {
+              out.push({ o: o + open, c: o + i, ch: q });
+              open = -1;
+            }
+          }
+        }
+        o += line.length + 1;
+      }
+      return out;
+    }
+    // choose a pair: method 'cover_or_next' | 'cover' | 'next' | 'last'
+    pickPair(pairs, at, method) {
+      const cover = pairs.filter((p) => p.o <= at && at <= p.c).sort((a, b) => a.c - a.o - (b.c - b.o));
+      if (method === 'next') return pairs.filter((p) => p.o > at).sort((a, b) => a.o - b.o)[0] || null;
+      if (method === 'last') return pairs.filter((p) => p.c < at).sort((a, b) => b.c - a.c)[0] || null;
+      if (cover.length) return cover[0];
+      if (method === 'cover') return null;
+      return pairs.filter((p) => p.o > at).sort((a, b) => a.o - b.o)[0] || null;
+    }
+    pairsFor(ch) {
+      if (ch === 'b') return this.bracketPairs('([{');
+      if (ch === 'q') return [...this.quotePairs('"'), ...this.quotePairs("'"), ...this.quotePairs('`')];
+      if (OPEN[ch]) return this.bracketPairs(ch);
+      if (CLOSE[ch]) return this.bracketPairs(CLOSE[ch]);
+      if (QUOTES.includes(ch)) return this.quotePairs(ch);
+      return null;
+    }
+
+    // ---------- function / indent helpers ----------
+    fnHeaders() {
+      const L = this.L;
+      const ft = this.buf.ft;
+      const out = [];
+      for (let i = 0; i < L.length; i++) {
+        const s = L[i];
+        let hit = false;
+        if (ft === 'python') hit = /^\s*(async\s+)?def\s/.test(s);
+        else if (ft === 'lua') hit = /\bfunction\b/.test(s) && !/\bend\b\s*\)?,?\s*$/.test(s);
+        else
+          hit =
+            (/\bfunction\b/.test(s) || /=>\s*\{\s*$/.test(s) || /^\s*(async\s+)?(?!if\b|for\b|while\b|switch\b|catch\b)[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{\s*$/.test(s)) &&
+            s.includes('{');
+        if (!hit) continue;
+        const end = this.fnEnd(i);
+        if (end !== null) out.push({ r1: i, r2: end });
+      }
+      return out;
+    }
+    fnEnd(i) {
+      const L = this.L;
+      const ft = this.buf.ft;
+      const ind = indentOf(L[i]).length;
+      if (ft === 'python') {
+        let last = i;
+        for (let j = i + 1; j < L.length; j++) {
+          if (L[j].trim() === '') continue;
+          if (indentOf(L[j]).length <= ind) break;
+          last = j;
+        }
+        return last;
+      }
+      if (ft === 'lua') {
+        for (let j = i + 1; j < L.length; j++) if (indentOf(L[j]).length === ind && /^\s*end\b/.test(L[j])) return j;
+        return null;
+      }
+      const o = this.off(i, L[i].lastIndexOf('{'));
+      const p = this.bracketPairs('{').find((q) => q.o === o);
+      return p ? this.pos(p.c).r : null;
+    }
+    lineIndent(i) {
+      const L = this.L;
+      if (L[i].trim() !== '') return indentOf(L[i]).length;
+      let up = -1,
+        dn = -1;
+      for (let j = i - 1; j >= 0; j--)
+        if (L[j].trim() !== '') {
+          up = indentOf(L[j]).length;
+          break;
+        }
+      for (let j = i + 1; j < L.length; j++)
+        if (L[j].trim() !== '') {
+          dn = indentOf(L[j]).length;
+          break;
+        }
+      return Math.max(up, dn, 0);
+    }
+    indentScope(r) {
+      const L = this.L;
+      let level = this.lineIndent(r);
+      let start = r;
+      if (r + 1 < L.length && L[r].trim() !== '' && this.lineIndent(r + 1) > level) {
+        level = this.lineIndent(r + 1);
+        start = r + 1;
+      }
+      let r1 = start,
+        r2 = start;
+      while (r1 > 0 && (L[r1 - 1].trim() === '' || this.lineIndent(r1 - 1) >= level)) r1--;
+      while (r2 < L.length - 1 && (L[r2 + 1].trim() === '' || this.lineIndent(r2 + 1) >= level)) r2++;
+      while (r1 < r2 && L[r1].trim() === '') r1++;
+      while (r2 > r1 && L[r2].trim() === '') r2--;
+      return { r1, r2, level };
+    }
+
+    // ---------- text objects ----------
+    *textObject(ai, n) {
+      let k = yield 'cmd';
+      let method = 'cover_or_next';
+      if (k === 'n' || k === 'l') {
+        method = k === 'n' ? 'next' : 'last';
+        k = yield 'cmd';
+      }
+      return this.objectRange(ai, k, method);
+    }
+    objectRange(ai, k, method) {
+      const L = this.L;
+      const { r, c } = this.cur;
+      const at = this.off(r, c);
+      const inner = ai === 'i';
+      const line = L[r];
+      if (k === 'w' || k === 'W') {
+        const big = k === 'W';
+        if (line.length === 0) return { kind: 'char', s: at, e: at };
+        const kk = cls(line[c], big);
+        let s = c,
+          e = c;
+        while (s > 0 && cls(line[s - 1], big) === kk) s--;
+        while (e + 1 < line.length && cls(line[e + 1], big) === kk) e++;
+        if (!inner) {
+          if (kk !== 0) {
+            if (e + 1 < line.length && isWS(line[e + 1])) {
+              while (e + 1 < line.length && isWS(line[e + 1])) e++;
+            } else {
+              while (s > 0 && isWS(line[s - 1])) s--;
+            }
+          } else if (e + 1 < line.length) {
+            const k2 = cls(line[e + 1], big);
+            e++;
+            while (e + 1 < line.length && cls(line[e + 1], big) === k2) e++;
+          }
+        }
+        return { kind: 'char', s: this.off(r, s), e: this.off(r, e) + 1 };
+      }
+      if (k === 'p') {
+        const blank = (i) => L[i].trim() === '';
+        const b = blank(r);
+        let r1 = r,
+          r2 = r;
+        while (r1 > 0 && blank(r1 - 1) === b) r1--;
+        while (r2 < L.length - 1 && blank(r2 + 1) === b) r2++;
+        if (!inner) {
+          if (r2 < L.length - 1) {
+            const nb = blank(r2 + 1);
+            while (r2 < L.length - 1 && blank(r2 + 1) === nb) r2++;
+          } else if (!b) while (r1 > 0 && blank(r1 - 1)) r1--;
+        }
+        return { kind: 'line', r1, r2 };
+      }
+      if (k === 'g') {
+        if (!inner) return { kind: 'line', r1: 0, r2: L.length - 1 };
+        let r1 = 0,
+          r2 = L.length - 1;
+        while (r1 < r2 && L[r1].trim() === '') r1++;
+        while (r2 > r1 && L[r2].trim() === '') r2--;
+        return { kind: 'line', r1, r2 };
+      }
+      if (k === 'i') {
+        const sc = this.indentScope(r);
+        if (inner) return { kind: 'line', r1: sc.r1, r2: sc.r2 };
+        return { kind: 'line', r1: Math.max(0, sc.r1 - 1), r2: Math.min(L.length - 1, sc.r2 + 1) };
+      }
+      if (k === 'f') {
+        const fns = this.fnHeaders().map((f) => ({ o: f.r1, c: f.r2 }));
+        const f = this.pickPair(fns, r, method);
+        if (!f) return null;
+        if (!inner) return { kind: 'line', r1: f.o, r2: f.c };
+        if (this.buf.ft === 'python') return f.c > f.o ? { kind: 'line', r1: f.o + 1, r2: f.c } : null;
+        if (f.c - f.o >= 2) return { kind: 'line', r1: f.o + 1, r2: f.c - 1 };
+        return null;
+      }
+      if (k === 'd') {
+        const ds = [];
+        const t = this.text();
+        const re = /\d+/g;
+        let m;
+        while ((m = re.exec(t))) ds.push({ o: m.index, c: m.index + m[0].length - 1 });
+        const p = this.pickPair(ds, at, method);
+        return p ? { kind: 'char', s: p.o, e: p.c + 1 } : null;
+      }
+      if (k === 'e') {
+        const segs = [];
+        const re = /[A-Z][a-z0-9]+|[A-Z]+(?![a-z])|[a-z0-9]+/g;
+        let m;
+        const tt = this.text();
+        while ((m = re.exec(tt))) segs.push({ o: m.index, c: m.index + m[0].length - 1 });
+        const p = this.pickPair(segs, at, method);
+        return p ? { kind: 'char', s: p.o, e: p.c + 1 } : null;
+      }
+      if (k === 'a') return this.argRange(inner, at, method);
+      if (k === 'u' || k === 'U') {
+        const t = this.text();
+        const calls = this.bracketPairs('(')
+          .map((p) => {
+            let s = p.o;
+            const re = k === 'u' ? /[\w.$]/ : /[\w$]/;
+            while (s > 0 && re.test(t[s - 1])) s--;
+            return s < p.o ? { o: s, c: p.c, ip: p.o } : null;
+          })
+          .filter(Boolean);
+        const p = this.pickPair(calls, at, method);
+        if (!p) return null;
+        return inner ? { kind: 'char', s: p.ip + 1, e: p.c } : { kind: 'char', s: p.o, e: p.c + 1 };
+      }
+      const pairs = this.pairsFor(k);
+      if (!pairs) return null;
+      const p = this.pickPair(pairs, at, method);
+      if (!p) return null;
+      if (!inner) return { kind: 'char', s: p.o, e: p.c + 1 };
+      let s = p.o + 1,
+        e = p.c;
+      if (OPEN[k] && k !== '<') {
+        const t = this.text();
+        while (s < e && /\s/.test(t[s])) s++;
+        while (e > s && /\s/.test(t[e - 1])) e--;
+      }
+      return { kind: 'char', s, e };
+    }
+    argRange(inner, at, method) {
+      const t = this.text();
+      const trim = ([a, b]) => {
+        while (a < b && /\s/.test(t[a])) a++;
+        while (b > a && /\s/.test(t[b - 1])) b--;
+        return [a, b];
+      };
+      const cands = [];
+      for (const p of this.bracketPairs('([{')) {
+        if (t.slice(p.o + 1, p.c).trim() === '') continue;
+        const spans = [];
+        let depth = 0,
+          quote = null,
+          st = p.o + 1;
+        for (let i = p.o + 1; i < p.c; i++) {
+          const ch = t[i];
+          if (quote) {
+            if (ch === quote && t[i - 1] !== '\\') quote = null;
+            continue;
+          }
+          if (QUOTES.includes(ch)) quote = ch;
+          else if ('([{'.includes(ch)) depth++;
+          else if (')]}'.includes(ch)) depth--;
+          else if (ch === ',' && depth === 0) {
+            spans.push([st, i]);
+            st = i + 1;
+          }
+        }
+        spans.push([st, p.c]);
+        spans.forEach((sp, i) => {
+          const [a, b] = trim(sp);
+          let oa = a,
+            ob = b;
+          if (spans.length > 1) {
+            if (i > 0) oa = trim(spans[i - 1])[1];
+            else ob = sp[1] + 1;
+          }
+          cands.push({ o: sp[0], c: Math.max(sp[0], sp[1] - 1), ia: a, ib: b, oa, ob });
+        });
+      }
+      const p = this.pickPair(cands, at, method);
+      if (!p) return null;
+      return inner ? { kind: 'char', s: p.ia, e: p.ib } : { kind: 'char', s: p.oa, e: p.ob };
+    }
+
+    // ---------- range helpers ----------
+    rangeFrom(m) {
+      const { r, c } = this.cur;
+      if (m.type === 'line') return { kind: 'line', r1: Math.min(r, m.r), r2: Math.max(r, m.r) };
+      let a = { r, c },
+        b = { r: m.r, c: m.c };
+      if (b.r < a.r || (b.r === a.r && b.c < a.c)) [a, b] = [b, a];
+      if (m.type === 'incl') {
+        const len = this.L[b.r].length;
+        if (m.nl && len === 0 && b.r < this.L.length - 1) return { kind: 'char', s: this.off(a.r, a.c), e: this.off(b.r, 0) + 1 };
+        return { kind: 'char', s: this.off(a.r, a.c), e: this.off(b.r, Math.min(len, b.c + 1)) };
+      }
+      if (b.c === 0 && b.r > a.r) {
+        if (a.c <= indentOf(this.L[a.r]).length) return { kind: 'line', r1: a.r, r2: b.r - 1, fnb: true };
+        return { kind: 'char', s: this.off(a.r, a.c), e: this.off(b.r - 1, this.L[b.r - 1].length) };
+      }
+      return { kind: 'char', s: this.off(a.r, a.c), e: this.off(b.r, b.c) };
+    }
+    rangeText(rg) {
+      if (rg.kind === 'line') return this.L.slice(rg.r1, rg.r2 + 1).join('\n');
+      return this.text().slice(rg.s, rg.e);
+    }
+    deleteRange(rg, reg, noReg) {
+      const L = this.L;
+      if (rg.kind === 'line') {
+        const removed = L.splice(rg.r1, rg.r2 - rg.r1 + 1);
+        if (!noReg) this.setReg(reg, removed.join('\n'), true);
+        if (!L.length) L.push('');
+        const nr = Math.min(rg.r1, L.length - 1);
+        if (rg.fnb) this.setCur(nr, fnbCol(L[nr]));
+        else this.setCur(nr, this.wantCol(nr), true);
+        return;
+      }
+      const t = this.text();
+      if (!noReg) this.setReg(reg, t.slice(rg.s, rg.e), false);
+      this.setText(t.slice(0, rg.s) + t.slice(rg.e));
+      const p = this.pos(rg.s);
+      this.setCur(p.r, p.c);
+    }
+
+    // ---------- the normal-mode command ----------
+    *normalCmd() {
+      this.mode = 'normal';
+      let k = yield 'cmd';
+      let reg = null;
+      if (k === '"') {
+        reg = yield 'text';
+        k = yield 'cmd';
+      }
+      let count = 0;
+      while (/^[1-9]$/.test(k) || (count && k === '0')) {
+        count = count * 10 + +k;
+        k = yield 'cmd';
+      }
+      const n = count || 1;
+      const wasChar = this.charActive;
+      this.charActive = false;
+      this.popup = null;
+      if (k !== ':' ) this.msg = this.msg && k === '<Esc>' ? '' : this.msg;
+      const L = this.L;
+      const b = this.buf;
+
+      if (wasChar && this.lastFind && k.length === 1 && 'fFtT'.includes(k) && k.toLowerCase() === this.lastFind.k.toLowerCase()) {
+        const m = this.repeatFind(k, n);
+        if (m) {
+          this.moveTo(m);
+          this.charActive = true;
+        }
+        return;
+      }
+
+      switch (k) {
+        case '<Esc>':
+          this.hl = false;
+          this.msg = '';
+          return;
+        case 'i':
+          return yield* this.insert();
+        case 'a':
+          if (L[b.r].length) b.c++;
+          return yield* this.insert();
+        case 'I':
+          b.c = L[b.r].trim() === '' ? L[b.r].length : fnbCol(L[b.r]);
+          return yield* this.insert();
+        case 'A':
+          b.c = L[b.r].length;
+          return yield* this.insert();
+        case 'o':
+        case 'O': {
+          const ind = indentOf(L[b.r]) + (k === 'o' && this.opensBlock(L[b.r]) ? '  ' : '');
+          const at = k === 'o' ? b.r + 1 : b.r;
+          L.splice(at, 0, ind);
+          b.r = at;
+          b.c = ind.length;
+          this.aiLine = at;
+          return yield* this.insert();
+        }
+        case 'v':
+        case 'V':
+          return yield* this.visual(k === 'V' ? 'line' : 'char');
+        case 'x':
+        case 'X': {
+          if (!L[b.r].length) return;
+          const m = k === 'x' ? { r: b.r, c: Math.min(L[b.r].length, b.c + n), type: 'excl' } : { r: b.r, c: Math.max(0, b.c - n), type: 'excl' };
+          const rg = this.rangeFrom(m);
+          if (rg.s === rg.e) return;
+          this.deleteRange(rg, reg);
+          return;
+        }
+        case 'D':
+        case 'C':
+        case 'Y': {
+          const r2 = Math.min(L.length - 1, b.r + n - 1);
+          const rg = { kind: 'char', s: this.off(b.r, b.c), e: this.off(r2, L[r2].length) };
+          if (k === 'Y') {
+            this.setReg(reg, this.rangeText(rg), false, true);
+            return;
+          }
+          this.deleteRange(rg, reg);
+          if (k === 'C') return yield* this.insert();
+          this.setCur(b.r, b.c);
+          return;
+        }
+        case 'p':
+        case 'P':
+          this.paste(k === 'p', n, reg);
+          return;
+        case 'u':
+          this.noUndo = true;
+          this.undo(n);
+          return;
+        case '<C-r>':
+          this.noUndo = true;
+          this.redoN(n);
+          return;
+        case '.': {
+          if (!this.lastChange) return;
+          let keys = this.lastChange.slice();
+          if (count) {
+            let i = 0;
+            if (keys[0] === '"') i = 2;
+            let j = i;
+            while (j < keys.length && /^[0-9]$/.test(keys[j]) && !(j === i && keys[j] === '0')) j++;
+            keys = [...keys.slice(0, i), ...String(count).split(''), ...keys.slice(j)];
+          }
+          this.queue.unshift(...keys.map((x) => [x, 'dot']));
+          return;
+        }
+        case 'J': {
+          const times = Math.min(Math.max(1, n - 1), L.length - 1 - b.r);
+          if (times <= 0) {
+            this.setCur(b.r, 0);
+            return;
+          }
+          for (let i = 0; i < times && b.r < L.length - 1; i++) {
+            const curL = L[b.r];
+            const nt = L[b.r + 1].replace(/^\s+/, '');
+            const sep = curL.length === 0 || /\s$/.test(curL) || nt === '' || nt[0] === ')' ? '' : ' ';
+            L[b.r] = curL + sep + nt;
+            L.splice(b.r + 1, 1);
+            b.c = curL.length + (sep ? 0 : 0) - (sep ? 0 : curL.length && !nt ? 1 : 0);
+            if (sep) b.c = curL.length;
+            else b.c = Math.max(0, curL.length - (nt === '' ? 1 : 0));
+          }
+          this.setCur(b.r, b.c);
+          return;
+        }
+        case 'r': {
+          const ch = yield 'text';
+          if (ch.length !== 1) return;
+          if (b.c + n > L[b.r].length) return;
+          L[b.r] = L[b.r].slice(0, b.c) + ch.repeat(n) + L[b.r].slice(b.c + n);
+          this.setCur(b.r, b.c + n - 1);
+          return;
+        }
+        case '~': {
+          const line = L[b.r];
+          const e = Math.min(line.length, b.c + n);
+          const seg = [...line.slice(b.c, e)].map((ch) => (ch === ch.toLowerCase() ? ch.toUpperCase() : ch.toLowerCase())).join('');
+          L[b.r] = line.slice(0, b.c) + seg + line.slice(e);
+          this.setCur(b.r, e);
+          return;
+        }
+        case '<C-a>':
+        case '<C-x>': {
+          const line = L[b.r];
+          const re = /-?\d+/g;
+          let m;
+          while ((m = re.exec(line))) {
+            if (m.index + m[0].length > b.c) {
+              const v = parseInt(m[0], 10) + (k === '<C-a>' ? n : -n);
+              const s = String(v);
+              L[b.r] = line.slice(0, m.index) + s + line.slice(m.index + m[0].length);
+              this.setCur(b.r, m.index + s.length - 1);
+              return;
+            }
+          }
+          return;
+        }
+        case 'q': {
+          if (this.recording) {
+            const rec = this.recording;
+            rec.keys.pop();
+            this.macros[rec.reg] = rec.keys;
+            this.recording = null;
+            this.say('');
+            return;
+          }
+          const rg = yield 'text';
+          if (!/^[a-z]$/.test(rg)) return;
+          this.recording = { reg: rg, keys: [] };
+          this.noUndo = true;
+          return;
+        }
+        case '@': {
+          let rg = yield 'text';
+          if (rg === '@') rg = this.lastMacro;
+          if (!rg || !this.macros[rg]) return;
+          this.lastMacro = rg;
+          const keys = [];
+          for (let i = 0; i < n; i++) keys.push(...this.macros[rg]);
+          this.queue.unshift(...keys.map((x) => [x, 'macro']));
+          return;
+        }
+        case ':': {
+          const s = yield* this.prompt(':', count ? `.,.+${count - 1}` : '');
+          if (s !== null) this.ex(s);
+          return;
+        }
+        case '<C-s>':
+          this.say(`"${b.name}" written`);
+          this.emit('write');
+          return;
+        case '<A-j>':
+        case '<A-k>':
+          this.moveLines(b.r, b.r, k === '<A-j>' ? n : -n);
+          return;
+        case 'H':
+        case 'L':
+          this.cycleBuffer(k === 'L' ? n : -n);
+          return;
+        case 'K': {
+          const w = this.wordUnder();
+          if (w) this.popup = { r: b.r, c: b.c, text: this.hover[w.word] || `${w.word}: no hover info` };
+          return;
+        }
+        case 'S': {
+          const rg = yield* this.flashTS();
+          if (!rg) return;
+          const s = this.pos(rg.s),
+            e = this.pos(Math.max(rg.s, rg.e - 1));
+          return yield* this.visual('char', { ar: s.r, ac: s.c, r: e.r, c: e.c });
+        }
+        case 'z':
+          yield 'cmd';
+          return;
+        case '<C-o>':
+        case '<C-i>':
+        case '<Tab>': {
+          const from = k === '<C-o>' ? this.jumps : this.jumpFwd;
+          const to = k === '<C-o>' ? this.jumpFwd : this.jumps;
+          const j = from.pop();
+          if (!j) return;
+          to.push({ buf: this.buf, r: b.r, c: b.c });
+          if (this.files.includes(j.buf)) this.openBuffer(j.buf);
+          this.setCur(j.r, j.c);
+          return;
+        }
+        case ' ':
+          return yield* this.leader();
+        case 'd':
+        case 'c':
+        case 'y':
+        case '>':
+        case '<':
+        case '=':
+          return yield* this.operator(k, count, reg);
+        case 'g': {
+          const k2 = yield 'cmd';
+          if (k2 === 'c') {
+            const k3 = yield 'cmd';
+            if (k3 === 'o' || k3 === 'O') return yield* this.commentLine(k3 === 'o');
+            return yield* this.operator('gc', count, reg, k3);
+          }
+          if (k2 === 'U' || k2 === 'u' || k2 === '~') return yield* this.operator('g' + k2, count, reg);
+          if (k2 === 's') {
+            const k3 = yield 'cmd';
+            if (k3 === 'a') return yield* this.operator('gsa', count, reg);
+            if (k3 === 'd' || k3 === 'r') return yield* this.surroundChange(k3);
+            this.say('mini.surround: only gsa, gsd and gsr are in this game');
+            return;
+          }
+          if (k2 === 'd') return this.gotoDef();
+          if (k2 === 'r') return this.refsList();
+          const m = yield* this.motion('g' + k2, count, null);
+          if (m) this.moveTo(m);
+          return;
+        }
+        case ']':
+        case '[': {
+          const k2 = yield 'cmd';
+          const fwd = k === ']';
+          if (k2 === 'd' || k2 === 'e' || k2 === 'w') return this.jumpDiag(fwd, n);
+          if (k2 === ']' || k2 === '[') return this.jumpRef(fwd, n);
+          if (k2 === 'b') return this.cycleBuffer(fwd ? n : -n);
+          const m = yield* this.motion(k + k2, count, null);
+          if (m) this.moveTo(m);
+          return;
+        }
+        default: {
+          const m = yield* this.motion(k, count, null);
+          if (m) this.moveTo(m);
+          else if (m === undefined) this.say(`${k} is not a command here`, true);
+        }
+      }
+    }
+
+    opensBlock(s) {
+      const ft = this.buf.ft;
+      if (/[\[{(]\s*$/.test(s)) return true;
+      if (ft === 'python' && /:\s*$/.test(s)) return true;
+      if (ft === 'lua' && /(\bthen|\bdo|\bfunction\b.*\))\s*$/.test(s)) return true;
+      return false;
+    }
+
+    moveTo(m) {
+      if (m.jump) {
+        this.jumps.push({ buf: this.buf, r: this.buf.r, c: this.buf.c });
+        this.jumpFwd = [];
+      }
+      const b = this.buf;
+      const max = Math.max(0, this.L[m.r].length - 1);
+      b.r = m.r;
+      b.c = Math.min(m.c, this.mode === 'insert' ? this.L[m.r].length : max);
+      if (m.want !== undefined) b.want = m.want;
+      else if (!m.keepWant) b.want = b.c;
+    }
+
+    repeatFind(k, n) {
+      const lf = this.lastFind;
+      const base = lf.k;
+      let use;
+      if (k === base.toLowerCase()) use = base;
+      else if (k === base.toUpperCase()) use = base === base.toLowerCase() ? base.toUpperCase() : base.toLowerCase();
+      else return this.findChar(k, lf.ch, n, false);
+      return this.findChar(use, lf.ch, n, true);
+    }
+
+    // ---------- motions ----------
+    *motion(k, count, op) {
+      const n = count || 1;
+      const L = this.L;
+      const { r, c } = this.cur;
+      switch (k) {
+        case 'h':
+        case '<Left>':
+          if (op && c === 0) return null;
+          return { r, c: Math.max(0, c - n), type: 'excl' };
+        case 'l':
+        case '<Right>': {
+          const lim = op ? L[r].length : Math.max(0, L[r].length - 1);
+          return { r, c: Math.min(lim, c + n), type: 'excl' };
+        }
+        case 'j':
+        case '<Down>':
+        case 'k':
+        case '<Up>': {
+          const d = k === 'j' || k === '<Down>' ? n : -n;
+          const nr = Math.max(0, Math.min(L.length - 1, r + d));
+          if (op && nr === r) return null;
+          return { r: nr, c: this.wantCol(nr), type: 'line', keepWant: true };
+        }
+        case '0':
+        case '<Home>':
+          return { r, c: 0, type: 'excl' };
+        case '^':
+          return { r, c: fnbCol(L[r]), type: 'excl' };
+        case '$':
+        case '<End>': {
+          const nr = Math.min(L.length - 1, r + n - 1);
+          return { r: nr, c: Math.max(0, L[nr].length - 1), type: 'incl', want: Infinity };
+        }
+        case 'w':
+        case 'W': {
+          const big = k === 'W';
+          if (op === 'c' && cls(L[r][c], big) !== 0) {
+            let p = { r, c };
+            for (let i = 0; i < n; i++) {
+              const pe = this.wordEnd(i === 0 ? { r: p.r, c: p.c - 1 } : p, big);
+              p = pe;
+            }
+            return { r: p.r, c: p.c, type: 'incl' };
+          }
+          let p = { r, c };
+          for (let i = 0; i < n; i++) p = op && i === n - 1 ? this.wordFwdEol(p, big) : this.wordFwd(p, big, false);
+          return { r: p.r, c: p.c, type: 'excl', noLine: !!op && p.r === r };
+        }
+        case 'b':
+        case 'B': {
+          if (op && r === 0 && c === 0) return null;
+          let p = { r, c };
+          for (let i = 0; i < n; i++) p = this.wordBack(p, k === 'B');
+          return { r: p.r, c: p.c, type: 'excl' };
+        }
+        case 'e':
+        case 'E': {
+          let p = { r, c };
+          for (let i = 0; i < n; i++) p = this.wordEnd(p, k === 'E');
+          return { r: p.r, c: p.c, type: 'incl' };
+        }
+        case 'ge':
+        case 'gE': {
+          let p = { r, c };
+          for (let i = 0; i < n; i++) p = this.wordEndBack(p, k === 'gE');
+          return { r: p.r, c: p.c, type: 'incl' };
+        }
+        case 'gg':
+        case 'G':
+        case '<C-End>': {
+          const nr = count ? Math.min(L.length, count) - 1 : k === 'gg' ? 0 : L.length - 1;
+          return { r: nr, c: this.wantCol(nr), type: 'line', jump: true, keepWant: true };
+        }
+        case 'f':
+        case 'F':
+        case 't':
+        case 'T': {
+          const ch = yield 'text';
+          if (ch.length !== 1) return null;
+          this.lastFind = { k, ch };
+          const m = this.findChar(k, ch, n, false);
+          if (!op) this.charActive = true;
+          return m;
+        }
+        case ';':
+        case ',': {
+          if (!this.lastFind) return null;
+          const lf = this.lastFind;
+          const kk = k === ';' ? lf.k : lf.k === lf.k.toLowerCase() ? lf.k.toUpperCase() : lf.k.toLowerCase();
+          if (!op) this.charActive = true;
+          return this.findChar(kk, lf.ch, n, true);
+        }
+        case '%': {
+          const line = L[r];
+          let i = c;
+          while (i < line.length && !'()[]{}'.includes(line[i])) i++;
+          const fail = op ? { r, c, type: 'incl', nl: true } : null;
+          if (i >= line.length) return fail;
+          const o = this.off(r, i);
+          const ch = line[i];
+          const pr = this.bracketPairs(OPEN[ch] ? ch : CLOSE[ch]).find((p) => p.o === o || p.c === o);
+          if (!pr) return fail;
+          const t = pr.o === o ? pr.c : pr.o;
+          const p = this.pos(t);
+          return { r: p.r, c: p.c, type: 'incl', jump: true };
+        }
+        case '}':
+        case '{': {
+          let i = r;
+          const fwd = k === '}';
+          for (let t = 0; t < n; t++) {
+            if (fwd) {
+              if (t > 0 || L[i] === '') i++;
+              while (i < L.length && L[i] === '') i++;
+              while (i < L.length && L[i] !== '') i++;
+              if (i >= L.length) return { r: L.length - 1, c: Math.max(0, L[L.length - 1].length - (op ? 0 : 1)), type: op ? 'excl' : 'excl', jump: true };
+            } else {
+              if (t > 0 || L[i] === '') i--;
+              while (i > 0 && L[i] === '') i--;
+              while (i > 0 && L[i] !== '') i--;
+              if (i <= 0) return { r: 0, c: 0, type: 'excl', jump: true };
+            }
+          }
+          return { r: i, c: 0, type: 'excl', jump: true };
+        }
+        case 'n':
+        case 'N': {
+          if (!this.lastSearch) return null;
+          const fwd = k === 'n';
+          const p = this.searchFrom(this.lastSearch, fwd, n);
+          if (!p) {
+            this.say('E486: Pattern not found: ' + this.lastSearch, true);
+            return null;
+          }
+          this.hl = true;
+          return { r: p.r, c: p.c, type: 'excl', jump: true };
+        }
+        case '*':
+        case '#': {
+          let w = this.wordUnder();
+          let pat;
+          if (w) pat = '\\<' + w.word + '\\>';
+          else {
+            const line = L[r];
+            let s0 = c;
+            while (s0 < line.length && isWS(line[s0])) s0++;
+            if (s0 >= line.length) return null;
+            let e0 = s0;
+            while (e0 + 1 < line.length && !isWS(line[e0 + 1])) e0++;
+            w = { word: line.slice(s0, e0 + 1), s: s0 };
+            pat = w.word.replace(/[\\.*\[\]^$~/]/g, '\\$&');
+          }
+          this.lastSearch = pat;
+          this.lastSearchIcase = true;
+          this.hl = true;
+          this.buf.c = w.s;
+          const p = this.searchFrom(this.lastSearch, k === '*', n, true);
+          this.buf.c = c;
+          return p ? { r: p.r, c: p.c, type: 'excl', jump: true } : null;
+        }
+        case '/':
+        case '?': {
+          const s = yield* this.prompt(k);
+          if (s === null) return null;
+          if (s !== '') {
+            this.lastSearch = s;
+            this.lastSearchIcase = false;
+          }
+          if (!this.lastSearch) return null;
+          const p = this.searchFrom(this.lastSearch, k === '/', n);
+          if (!p) {
+            this.say('E486: Pattern not found: ' + this.lastSearch, true);
+            return null;
+          }
+          this.hl = true;
+          return { r: p.r, c: p.c, type: 'excl', jump: true };
+        }
+        case 's': {
+          const p = yield* this.flashJump();
+          if (!p) return null;
+          return { r: p.r, c: p.c, type: op ? 'incl' : 'excl', jump: true };
+        }
+        case ']f':
+        case '[f': {
+          const hs = this.fnHeaders().map((f) => f.r1);
+          const t = k === ']f' ? hs.find((h) => h > r) : hs.filter((h) => h < r).pop();
+          if (t === undefined) return null;
+          return { r: t, c: fnbCol(L[t]), type: 'excl', jump: true };
+        }
+        default:
+          return undefined;
+      }
+    }
+
+    wordUnder() {
+      const line = this.L[this.buf.r];
+      let c = this.buf.c;
+      while (c < line.length && !isKW(line[c])) c++;
+      if (c >= line.length) return null;
+      let s = c,
+        e = c;
+      while (s > 0 && isKW(line[s - 1])) s--;
+      while (e + 1 < line.length && isKW(line[e + 1])) e++;
+      return { word: line.slice(s, e + 1), s, e };
+    }
+
+    searchFrom(pat, fwd, n, inclusiveStart) {
+      const re = makeRe(pat, 'g');
+      if (!re) return null;
+      if (this.lastSearchIcase && !re.flags.includes('i')) return this.searchFromRe(new RegExp(re.source, 'gi'), fwd, n, inclusiveStart);
+      return this.searchFromRe(re, fwd, n, inclusiveStart);
+    }
+    searchFromRe(re, fwd, n) {
+      const t = this.text();
+      const all = [];
+      let m;
+      re.lastIndex = 0;
+      while ((m = re.exec(t))) {
+        all.push(m.index);
+        if (m[0].length === 0) re.lastIndex++;
+      }
+      if (!all.length) return null;
+      let at = this.off(this.buf.r, this.buf.c);
+      for (let i = 0; i < n; i++) {
+        let nx;
+        if (fwd) nx = all.find((o) => o > at);
+        else nx = [...all].reverse().find((o) => o < at);
+        if (nx === undefined) {
+          nx = fwd ? all[0] : all[all.length - 1];
+          this.say('search hit BOTTOM, continuing at TOP');
+        }
+        at = nx;
+      }
+      return this.pos(at);
+    }
+    searchMatches() {
+      if (!this.hl && !(this.cmdline && (this.cmdline.prefix === '/' || this.cmdline.prefix === '?'))) return [];
+      const pat = this.cmdline && (this.cmdline.prefix === '/' || this.cmdline.prefix === '?') ? this.cmdline.text : this.lastSearch;
+      if (!pat) return [];
+      let re = makeRe(pat, 'g');
+      if (!re) return [];
+      if (this.lastSearchIcase && !(this.cmdline && this.cmdline.text)) re = new RegExp(re.source, 'gi');
+      const out = [];
+      this.L.forEach((line, r) => {
+        re.lastIndex = 0;
+        let m;
+        while ((m = re.exec(line))) {
+          if (m[0].length === 0) {
+            re.lastIndex++;
+            continue;
+          }
+          out.push({ r, c: m.index, len: m[0].length });
+        }
+      });
+      return out;
+    }
+
+    // ---------- operators ----------
+    *operator(op, count, reg, firstKey) {
+      const dbl = { d: 'd', c: 'c', y: 'y', '>': '>', '<': '<', '=': '=', gc: 'c', gU: 'U', gu: 'u', 'g~': '~' }[op];
+      let k = firstKey !== undefined ? firstKey : yield 'cmd';
+      let c2 = 0;
+      while (/^[1-9]$/.test(k) || (c2 && k === '0')) {
+        c2 = c2 * 10 + +k;
+        k = yield 'cmd';
+      }
+      const hasCount = count || c2;
+      const n = (count || 1) * (c2 || 1);
+      const L = this.L;
+      const b = this.buf;
+      let rg = null;
+      if (k === 'g' || k === ']' || k === '[') {
+        const k2 = yield 'cmd';
+        if (op.startsWith('g') && k === 'g' && k2 === dbl) k = dbl;
+        else k = k + k2;
+      }
+      if (k === dbl || (op.length === 2 && k === op)) {
+        if (b.r + n - 1 > L.length - 1 && n > 1) return;
+        rg = { kind: 'line', r1: b.r, r2: Math.min(L.length - 1, b.r + n - 1) };
+      } else if (k === 'i' || k === 'a') {
+        rg = yield* this.textObject(k, n);
+        if (!rg && op === 'c') return yield* this.insert();
+      } else if (k === 'r') {
+        return yield* this.remote(op, reg);
+      } else if (k === 'S') {
+        rg = yield* this.flashTS();
+      } else if (k === '<Esc>') {
+        return;
+      } else {
+        const m = yield* this.motion(k, hasCount ? n : 0, op);
+        if (!m) return;
+        rg = this.rangeFrom(m);
+        if (m.noLine && rg.kind === 'line') rg = { kind: 'char', s: this.off(b.r, b.c), e: this.off(m.r, m.c) };
+      }
+      if (!rg) return;
+      return yield* this.applyOp(op, rg, reg);
+    }
+
+    *remote(op, reg) {
+      const save = { r: this.buf.r, c: this.buf.c };
+      const len0 = this.text().length;
+      const saveOff = this.off(save.r, save.c);
+      const t = yield* this.flashJump();
+      if (!t) return;
+      this.setCur(t.r, t.c);
+      const k = yield 'cmd';
+      let rg;
+      if (k === 'i' || k === 'a') rg = yield* this.textObject(k, 1);
+      else {
+        const m = yield* this.motion(k, 0, op);
+        if (!m) return;
+        rg = this.rangeFrom(m);
+      }
+      if (!rg) return;
+      const sAt = rg.kind === 'line' ? this.off(rg.r1, 0) : rg.s;
+      yield* this.applyOp(op, rg, reg);
+      if (this.mode === 'insert') return;
+      let o = saveOff;
+      if (sAt < saveOff) o += this.text().length - len0;
+      const p = this.pos(Math.max(0, o));
+      this.setCur(p.r, p.c);
+    }
+
+    *applyOp(op, rg, reg) {
+      const L = this.L;
+      const b = this.buf;
+      switch (op) {
+        case 'd':
+          if (rg.kind === 'char') {
+            const a = this.pos(rg.s),
+              z = this.pos(rg.e);
+            if (z.r > a.r && a.c <= indentOf(L[a.r]).length && L[z.r].slice(z.c).trim() === '' && rg.e > rg.s)
+              rg = { kind: 'line', r1: a.r, r2: z.r, fnb: true };
+          }
+          this.deleteRange(rg, reg);
+          return;
+        case 'y': {
+          this.setReg(reg, this.rangeText(rg), rg.kind === 'line', true);
+          if (rg.kind === 'line') this.setCur(rg.r1, rg.r1 === b.r ? b.c : b.c, true);
+          else {
+            const p = this.pos(rg.s);
+            this.setCur(p.r, p.c);
+          }
+          return;
+        }
+        case 'c': {
+          if (rg.kind === 'line') {
+            const removed = L.slice(rg.r1, rg.r2 + 1);
+            this.setReg(reg, removed.join('\n'), true);
+            const ind = indentOf(L[rg.r1]);
+            L.splice(rg.r1, rg.r2 - rg.r1 + 1, ind);
+            b.r = rg.r1;
+            b.c = ind.length;
+          } else {
+            const t = this.text();
+            this.setReg(reg, t.slice(rg.s, rg.e), false);
+            this.setText(t.slice(0, rg.s) + t.slice(rg.e));
+            const p = this.pos(rg.s);
+            b.r = p.r;
+            b.c = p.c;
+          }
+          return yield* this.insert();
+        }
+        case '>':
+        case '<':
+        case '=': {
+          const { r1, r2 } = this.linesOf(rg);
+          if (op !== '=')
+            for (let i = r1; i <= r2; i++) {
+              if (op === '>') {
+                if (L[i].length) L[i] = '  ' + L[i];
+              } else L[i] = L[i].replace(/^( {1,2}|\t)/, '');
+            }
+          this.setCur(rg.kind === 'line' ? b.r : r1, b.c, true);
+          return;
+        }
+        case 'gc': {
+          const { r1, r2 } = this.linesOf(rg);
+          this.toggleComment(r1, r2);
+          if (rg.kind === 'line' && rg.r1 === rg.r2) return;
+          this.setCur(r1, b.c);
+          return;
+        }
+        case 'gU':
+        case 'gu':
+        case 'g~': {
+          const f = (ch) => (op === 'gU' ? ch.toUpperCase() : op === 'gu' ? ch.toLowerCase() : ch === ch.toLowerCase() ? ch.toUpperCase() : ch.toLowerCase());
+          const t = this.text();
+          let s, e;
+          if (rg.kind === 'line') {
+            s = this.off(rg.r1, 0);
+            e = this.off(rg.r2, L[rg.r2].length);
+          } else {
+            s = rg.s;
+            e = rg.e;
+          }
+          this.setText(t.slice(0, s) + [...t.slice(s, e)].map(f).join('') + t.slice(e));
+          const p = rg.kind === 'line' ? { r: rg.r1, c: fnbCol(L[rg.r1]) } : this.pos(s);
+          this.setCur(p.r, p.c);
+          return;
+        }
+        case 'gsa': {
+          const ch = yield 'text';
+          const pair = yield* this.surroundPair(ch);
+          if (!pair) return;
+          let s, e;
+          if (rg.kind === 'line') {
+            s = this.off(rg.r1, 0);
+            e = this.off(rg.r2, L[rg.r2].length);
+          } else {
+            s = rg.s;
+            e = rg.e;
+          }
+          const t = this.text();
+          this.setText(t.slice(0, s) + pair[0] + t.slice(s, e) + pair[1] + t.slice(e));
+          const p = this.pos(s + pair[0].length);
+          this.setCur(p.r, p.c);
+          return;
+        }
+      }
+    }
+    linesOf(rg) {
+      if (rg.kind === 'line') return { r1: rg.r1, r2: rg.r2 };
+      const a = this.pos(rg.s),
+        z = this.pos(Math.max(rg.s, rg.e - 1));
+      return { r1: a.r, r2: z.r };
+    }
+    commentStr() {
+      return COMMENT[this.buf.ft] || '#';
+    }
+    toggleComment(r1, r2) {
+      const L = this.L;
+      const cs = this.commentStr();
+      const lines = [];
+      for (let i = r1; i <= r2; i++) if (L[i].trim() !== '') lines.push(i);
+      if (!lines.length) return;
+      const all = lines.every((i) => L[i].trimStart().startsWith(cs));
+      if (all) {
+        for (const i of lines) {
+          const ind = indentOf(L[i]);
+          let rest = L[i].slice(ind.length + cs.length);
+          if (rest.startsWith(' ')) rest = rest.slice(1);
+          L[i] = ind + rest;
+        }
+      } else {
+        const min = Math.min(...lines.map((i) => indentOf(L[i]).length));
+        for (const i of lines) L[i] = L[i].slice(0, min) + cs + ' ' + L[i].slice(min);
+      }
+    }
+    *commentLine(below) {
+      const L = this.L;
+      const b = this.buf;
+      const ind = indentOf(L[b.r]);
+      const at = below ? b.r + 1 : b.r;
+      const pre = ind + this.commentStr() + ' ';
+      L.splice(at, 0, pre);
+      b.r = at;
+      b.c = pre.length;
+      return yield* this.insert();
+    }
+    moveLines(r1, r2, d) {
+      const L = this.L;
+      const b = this.buf;
+      if (d > 0) d = Math.min(d, L.length - 1 - r2);
+      else d = Math.max(d, -r1);
+      if (!d) return 0;
+      const block = L.splice(r1, r2 - r1 + 1);
+      L.splice(r1 + d, 0, ...block);
+      b.r += d;
+      return d;
+    }
+    paste(after, n, reg) {
+      const v = this.getReg(reg);
+      if (!v || (!v.text && !v.line)) return;
+      const L = this.L;
+      const b = this.buf;
+      if (v.line) {
+        const lines = [];
+        for (let i = 0; i < n; i++) lines.push(...v.text.split('\n'));
+        const at = after ? b.r + 1 : b.r;
+        L.splice(at, 0, ...lines);
+        this.setCur(at, fnbCol(L[at]));
+        return;
+      }
+      const t = this.text();
+      const col = after && L[b.r].length ? b.c + 1 : b.c;
+      const o = this.off(b.r, col);
+      const ins = v.text.repeat(n);
+      this.setText(t.slice(0, o) + ins + t.slice(o));
+      const p = ins.includes('\n') ? this.pos(o) : this.pos(o + ins.length - 1);
+      this.setCur(p.r, p.c);
+    }
+
+    // ---------- surround ----------
+    *surroundPair(ch) {
+      const P = {
+        '(': ['( ', ' )'],
+        ')': ['(', ')'],
+        b: ['(', ')'],
+        '[': ['[ ', ' ]'],
+        ']': ['[', ']'],
+        '{': ['{ ', ' }'],
+        '}': ['{', '}'],
+        B: ['{', '}'],
+        '<': ['< ', ' >'],
+        '>': ['<', '>'],
+        q: ['"', '"'],
+      };
+      if (P[ch]) return P[ch];
+      if (ch === 'f') {
+        const name = yield* this.prompt('Function name: ');
+        if (!name) return null;
+        return [name + '(', ')'];
+      }
+      if (ch === 't') {
+        const tag = yield* this.prompt('Tag name: ');
+        if (!tag) return null;
+        return ['<' + tag + '>', '</' + tag.split(/\s/)[0] + '>'];
+      }
+      if (ch.length !== 1 || ch === ' ') return null;
+      return [ch, ch];
+    }
+    findSurround(ch, method) {
+      const t = this.text();
+      const at = this.off(this.buf.r, this.buf.c);
+      let pairs;
+      if (ch === 'f') {
+        pairs = this.bracketPairs('(')
+          .map((p) => {
+            let s = p.o;
+            while (s > 0 && /[\w.$]/.test(t[s - 1])) s--;
+            return s < p.o ? { o: s, c: p.c, li: p.o + 1 } : null;
+          })
+          .filter(Boolean);
+      } else pairs = this.pairsFor(ch);
+      if (!pairs) {
+        if (ch.length !== 1) return null;
+        pairs = this.quotePairs(ch);
+      }
+      const m = method === 'cover' ? 'cover' : method;
+      const p = this.pickPair(pairs, at, m);
+      if (!p) return null;
+      let lo = p.o,
+        li = p.li || p.o + 1,
+        ri = p.c,
+        ro = p.c + 1;
+      if (OPEN[ch] && ch !== '<') {
+        while (li < ri && /\s/.test(t[li])) li++;
+        while (ri > li && /\s/.test(t[ri - 1])) ri--;
+      }
+      return { lo, li, ri, ro };
+    }
+    *surroundChange(kind) {
+      let ch = yield 'text';
+      let method = 'cover';
+      if (ch === 'n' || ch === 'l') {
+        method = ch === 'n' ? 'next' : 'last';
+        ch = yield 'text';
+      }
+      const f = this.findSurround(ch, method);
+      if (!f) {
+        this.say(`(mini.surround) No surrounding "${ch}" found within 20 lines and \`config.search_method = 'cover'\`.`, true);
+        return;
+      }
+      const t = this.text();
+      if (kind === 'd') {
+        this.setText(t.slice(0, f.lo) + t.slice(f.li, f.ri) + t.slice(f.ro));
+        const p = this.pos(f.lo);
+        this.setCur(p.r, p.c);
+        return;
+      }
+      const nch = yield 'text';
+      const pair = yield* this.surroundPair(nch);
+      if (!pair) return;
+      this.setText(t.slice(0, f.lo) + pair[0] + t.slice(f.li, f.ri) + pair[1] + t.slice(f.ro));
+      const p = this.pos(f.lo + pair[0].length);
+      this.setCur(p.r, p.c);
+    }
+
+    // ---------- insert mode ----------
+    *insert() {
+      this.mode = 'insert';
+      const b = this.buf;
+      let prevJ = false;
+      for (;;) {
+        const k = yield 'text';
+        const L = this.L;
+        if (this.jk && prevJ && k === 'k' && b.c > 0 && L[b.r][b.c - 1] === 'j') {
+          L[b.r] = L[b.r].slice(0, b.c - 1) + L[b.r].slice(b.c);
+          b.c--;
+          return this.leaveInsert();
+        }
+        prevJ = k === 'j';
+        if (k === '<Esc>' || k === '<C-c>' || k === '<C-[>') return this.leaveInsert();
+        if (k === '<C-s>') {
+          this.say(`"${b.name}" written`);
+          this.emit('write');
+          return this.leaveInsert();
+        }
+        if (k !== '<CR>') this.aiLine = -1;
+        if (k === '<BS>') this.backspace();
+        else if (k === '<CR>') this.newline();
+        else if (k === '<Tab>') this.insText('  ');
+        else if (k === '<A-j>' || k === '<A-k>') this.moveLines(b.r, b.r, k === '<A-j>' ? 1 : -1);
+        else if (k === '<Left>') b.c = Math.max(0, b.c - 1);
+        else if (k === '<Right>') b.c = Math.min(L[b.r].length, b.c + 1);
+        else if (k === '<C-w>') {
+          const line = L[b.r];
+          let s = b.c;
+          while (s > 0 && isWS(line[s - 1])) s--;
+          const kk = cls(line[s - 1]);
+          while (s > 0 && cls(line[s - 1]) === kk && kk !== 0) s--;
+          L[b.r] = line.slice(0, s) + line.slice(b.c);
+          b.c = s;
+        } else if (k.length === 1) this.typeChar(k);
+      }
+    }
+    leaveInsert() {
+      const b = this.buf;
+      const L = this.L;
+      if (this.aiLine === b.r && L[b.r].trim() === '') {
+        L[b.r] = '';
+        b.c = 0;
+      }
+      this.aiLine = -1;
+      this.mode = 'normal';
+      if (b.c > 0) b.c--;
+      b.want = b.c;
+    }
+    insText(s) {
+      const b = this.buf;
+      const line = this.L[b.r];
+      this.L[b.r] = line.slice(0, b.c) + s + line.slice(b.c);
+      b.c += s.length;
+    }
+    typeChar(ch) {
+      const b = this.buf;
+      const line = this.L[b.r];
+      const next = line[b.c];
+      const prev = line[b.c - 1];
+      if (this.pairs) {
+        const skipNext = next !== undefined && /[\w%'\[".`$]/.test(next);
+        if ('([{'.includes(ch)) {
+          const close = OPEN[ch];
+          let unbalanced = false;
+          if (next === close) {
+            const opens = line.split(ch).length - 1;
+            const closes = line.split(close).length - 1;
+            unbalanced = closes > opens;
+          }
+          if (prev !== '\\' && !skipNext && !unbalanced) {
+            this.insText(ch + close);
+            b.c--;
+            return;
+          }
+        } else if (')]}'.includes(ch) && next === ch) {
+          b.c++;
+          return;
+        } else if (QUOTES.includes(ch)) {
+          if (next === ch) {
+            b.c++;
+            return;
+          }
+          const neigh = ch === "'" ? !(prev && /[A-Za-z\\]/.test(prev)) : prev !== '\\';
+          const inStr = (line.slice(0, b.c).split(ch).length - 1) % 2 === 1;
+          if (neigh && !skipNext && !inStr) {
+            this.insText(ch + ch);
+            b.c--;
+            return;
+          }
+        }
+      }
+      this.insText(ch);
+    }
+    backspace() {
+      const b = this.buf;
+      const L = this.L;
+      if (b.c === 0) {
+        if (b.r === 0) return;
+        const pl = L[b.r - 1].length;
+        L[b.r - 1] += L[b.r];
+        L.splice(b.r, 1);
+        b.r--;
+        b.c = pl;
+        return;
+      }
+      const line = L[b.r];
+      const prev = line[b.c - 1],
+        next = line[b.c];
+      const both = this.pairs && next !== undefined && ({ '(': ')', '[': ']', '{': '}', '"': '"', "'": "'", '`': '`' }[prev] === next);
+      L[b.r] = line.slice(0, b.c - 1) + line.slice(b.c + (both ? 1 : 0));
+      b.c--;
+    }
+    newline() {
+      const b = this.buf;
+      const L = this.L;
+      const line = L[b.r];
+      const before = line.slice(0, b.c),
+        after = line.slice(b.c).replace(/^\s+/, '');
+      const ind = indentOf(line);
+      if (this.pairs && /[\[{(]$/.test(before) && after.length && OPEN[before[before.length - 1]] === after[0]) {
+        L.splice(b.r, 1, before, ind + '  ', ind + after);
+        b.r++;
+        b.c = ind.length + 2;
+        this.aiLine = b.r;
+        return;
+      }
+      const extra = this.opensBlock(before) ? '  ' : '';
+      L.splice(b.r, 1, before, ind + extra + after);
+      b.r++;
+      b.c = ind.length + extra.length;
+      this.aiLine = after ? -1 : b.r;
+    }
+
+    // ---------- visual mode ----------
+    visRange() {
+      const v = this.vis;
+      const b = this.buf;
+      if (v.kind === 'line') return { kind: 'line', r1: Math.min(v.ar, b.r), r2: Math.max(v.ar, b.r) };
+      let a = { r: v.ar, c: v.ac },
+        z = { r: b.r, c: b.c };
+      if (z.r < a.r || (z.r === a.r && z.c < a.c)) [a, z] = [z, a];
+      const len = this.L[z.r].length;
+      const zIsCur = z.r === b.r && z.c === b.c;
+      const eol = z.r < this.L.length - 1 && (len === 0 || (zIsCur && b.want >= len));
+      return { kind: 'char', s: this.off(a.r, a.c), e: this.off(z.r, Math.min(len, z.c + 1)) + (eol ? 1 : 0) };
+    }
+    *visual(kind, preset) {
+      const b = this.buf;
+      this.vis = preset ? { kind, ar: preset.ar, ac: preset.ac } : { kind, ar: b.r, ac: b.c };
+      if (preset) this.setCur(preset.r, preset.c);
+      this.mode = kind === 'line' ? 'vline' : 'visual';
+      for (;;) {
+        this.mode = this.vis.kind === 'line' ? 'vline' : 'visual';
+        let k = yield 'cmd';
+        let count = 0;
+        while (/^[1-9]$/.test(k) || (count && k === '0')) {
+          count = count * 10 + +k;
+          k = yield 'cmd';
+        }
+        const n = count || 1;
+        const wasChar = this.charActive;
+        this.charActive = false;
+        let reg = null;
+        if (k === '"') {
+          reg = yield 'text';
+          k = yield 'cmd';
+        }
+        if (wasChar && this.lastFind && k.length === 1 && 'fFtT'.includes(k) && k.toLowerCase() === this.lastFind.k.toLowerCase()) {
+          const m = this.repeatFind(k, n);
+          if (m) {
+            this.moveTo(m);
+            this.charActive = true;
+          }
+          continue;
+        }
+        if (k === '<Esc>' || k === '<C-c>') break;
+        if (k === 'v' || k === 'V') {
+          const nk = k === 'V' ? 'line' : 'char';
+          if (nk === this.vis.kind) break;
+          this.vis.kind = nk;
+          continue;
+        }
+        if (k === 'o') {
+          const { ar, ac } = this.vis;
+          this.vis.ar = b.r;
+          this.vis.ac = b.c;
+          this.setCur(ar, ac);
+          continue;
+        }
+        if (k === 'i' || k === 'a') {
+          const rg = yield* this.textObject(k, n);
+          if (!rg) continue;
+          if (rg.kind === 'line') {
+            this.vis.kind = 'line';
+            this.vis.ar = rg.r1;
+            this.vis.ac = 0;
+            this.setCur(rg.r2, 0);
+          } else {
+            const s = this.pos(rg.s),
+              e = this.pos(Math.max(rg.s, rg.e - 1));
+            this.vis.ar = s.r;
+            this.vis.ac = s.c;
+            this.setCur(e.r, e.c);
+          }
+          continue;
+        }
+        const rg = this.visRange();
+        const exit = () => {
+          this.vis = null;
+          this.mode = 'normal';
+        };
+        if (k === 'd' || k === 'x' || k === '<Del>') {
+          exit();
+          this.deleteRange(rg, reg);
+          return;
+        }
+        if (k === 'c') {
+          exit();
+          return yield* this.applyOp('c', rg, reg);
+        }
+        if (k === 'y') {
+          exit();
+          yield* this.applyOp('y', rg, reg);
+          if (rg.kind === 'line') this.setCur(rg.r1, 0);
+          return;
+        }
+        if ('XDYCSR'.includes(k) && k.length === 1) {
+          const { r1, r2 } = this.linesOf(rg);
+          exit();
+          const lr = { kind: 'line', r1, r2 };
+          if (k === 'X' || k === 'D') this.deleteRange(lr, reg);
+          else if (k === 'Y') {
+            yield* this.applyOp('y', lr, reg);
+            this.setCur(r1, 0);
+          } else return yield* this.applyOp('c', lr, reg);
+          return;
+        }
+        if (k === '>' || k === '<') {
+          const { r1, r2 } = this.linesOf(rg);
+          const save = { ...this.vis };
+          const cr = b.r,
+            cc = b.c;
+          for (let t = 0; t < n; t++) yield* this.applyOp(k, { kind: 'line', r1, r2 }, reg);
+          this.vis = save;
+          this.setCur(cr, cc);
+          continue;
+        }
+        if (k === '~' || k === 'u' || k === 'U') {
+          exit();
+          yield* this.applyOp(k === 'U' ? 'gU' : k === 'u' ? 'gu' : 'g~', rg, reg);
+          return;
+        }
+        if (k === 'J') {
+          const { r1, r2 } = this.linesOf(rg);
+          exit();
+          this.setCur(r1, 0);
+          this.queue.unshift(...String(Math.max(2, r2 - r1 + 1)).split('').map((x) => [x, 'macro']), ['J', 'macro']);
+          return;
+        }
+        if (k === 'r') {
+          const ch = yield 'text';
+          exit();
+          if (ch.length !== 1) return;
+          const t = this.text();
+          let s, e;
+          if (rg.kind === 'line') {
+            s = this.off(rg.r1, 0);
+            e = this.off(rg.r2, this.L[rg.r2].length);
+          } else ({ s, e } = rg);
+          this.setText(t.slice(0, s) + t.slice(s, e).replace(/[^\n]/g, ch) + t.slice(e));
+          const p = this.pos(s);
+          this.setCur(p.r, p.c);
+          return;
+        }
+        if (k === 'p' || k === 'P') {
+          exit();
+          const v = this.getReg(reg);
+          if (!v) return;
+          const old = this.rangeText(rg);
+          if (rg.kind === 'line') {
+            const lines = v.line ? v.text.split('\n') : [v.text];
+            this.L.splice(rg.r1, rg.r2 - rg.r1 + 1, ...lines);
+            this.setCur(rg.r1, fnbCol(this.L[rg.r1]));
+          } else {
+            const t = this.text();
+            const ins = v.line ? '\n' + v.text + '\n' : v.text;
+            this.setText(t.slice(0, rg.s) + ins + t.slice(rg.e));
+            const p = this.pos(rg.s + Math.max(0, ins.length - 1));
+            this.setCur(p.r, p.c);
+          }
+          if (k === 'p') this.setReg(null, old, rg.kind === 'line');
+          return;
+        }
+        if (k === ':') {
+          exit();
+          const s = yield* this.prompt(':', "'<,'>");
+          this.vrange = this.linesOf(rg);
+          if (s !== null) this.ex(s);
+          return;
+        }
+        if (k === '<A-j>' || k === '<A-k>') {
+          const { r1, r2 } = this.linesOf(rg);
+          const d = this.moveLines(r1, r2, k === '<A-j>' ? n : -n);
+          this.vis.ar += d;
+          continue;
+        }
+        if (k === 'S') {
+          const r2 = yield* this.flashTS();
+          if (r2) {
+            const s = this.pos(r2.s),
+              e = this.pos(Math.max(r2.s, r2.e - 1));
+            this.vis = { kind: 'char', ar: s.r, ac: s.c };
+            this.setCur(e.r, e.c);
+          }
+          continue;
+        }
+        if (k === 'g') {
+          const k2 = yield 'cmd';
+          if (k2 === 'c') {
+            exit();
+            yield* this.applyOp('gc', rg, reg);
+            return;
+          }
+          if (k2 === 'U' || k2 === 'u' || k2 === '~') {
+            exit();
+            yield* this.applyOp('g' + k2, rg, reg);
+            return;
+          }
+          if (k2 === 's') {
+            const k3 = yield 'cmd';
+            if (k3 === 'a') {
+              exit();
+              yield* this.applyOp('gsa', rg, reg);
+              return;
+            }
+            continue;
+          }
+          const m = yield* this.motion('g' + k2, count, null);
+          if (m) this.moveTo(m);
+          continue;
+        }
+        if (k === ']' || k === '[') {
+          const k2 = yield 'cmd';
+          const m = yield* this.motion(k + k2, count, null);
+          if (m) this.moveTo(m);
+          continue;
+        }
+        const m = yield* this.motion(k, count, null);
+        if (m) this.moveTo(m);
+      }
+      this.vis = null;
+      this.mode = 'normal';
+    }
+
+    // ---------- prompts ----------
+    *prompt(prefix, init) {
+      this.cmdline = { prefix, text: init || '' };
+      for (;;) {
+        const k = yield 'text';
+        const cl = this.cmdline;
+        if (k === '<Esc>' || k === '<C-c>') {
+          this.cmdline = null;
+          return null;
+        }
+        if (k === '<CR>') {
+          this.cmdline = null;
+          return cl.text;
+        }
+        if (k === '<BS>') {
+          if (!cl.text) {
+            this.cmdline = null;
+            return null;
+          }
+          cl.text = cl.text.slice(0, -1);
+        } else if (k === '<C-u>') cl.text = '';
+        else if (k.length === 1) cl.text += k;
+      }
+    }
+
+    // ---------- ex commands ----------
+    ex(s) {
+      const L = this.L;
+      const b = this.buf;
+      s = s.trim();
+      if (!s) return;
+      if (/^\d+$/.test(s)) {
+        this.jumps.push({ buf: b, r: b.r, c: b.c });
+        const r = Math.min(L.length, Math.max(1, +s)) - 1;
+        this.setCur(r, fnbCol(L[r]));
+        return;
+      }
+      let r1 = b.r,
+        r2 = b.r;
+      const addr = (a) => {
+        if (a === '.') return b.r;
+        if (a === '$') return L.length - 1;
+        if (a === "'<") return this.vrange ? this.vrange.r1 : b.r;
+        if (a === "'>") return this.vrange ? this.vrange.r2 : b.r;
+        const m = a.match(/^([.$]|\d+)?([+-]\d+)?$/);
+        if (!m) return null;
+        let base = m[1] === undefined || m[1] === '.' ? b.r : m[1] === '$' ? L.length - 1 : +m[1] - 1;
+        if (m[2]) base += +m[2];
+        return base;
+      };
+      let m = s.match(/^(%|(?:'<|'>|[.$]|\d+)?(?:[+-]\d+)?(?:,(?:'<|'>|[.$]|\d+)?(?:[+-]\d+)?)?)(.*)$/);
+      let rest = s;
+      if (m && m[1]) {
+        rest = m[2].trim();
+        if (m[1] === '%') {
+          r1 = 0;
+          r2 = L.length - 1;
+        } else {
+          const [a, z] = m[1].split(',');
+          r1 = addr(a);
+          r2 = z === undefined ? r1 : addr(z);
+          if (r1 === null || r2 === null) return this.say('E14: Invalid address', true);
+          if (r1 > r2) [r1, r2] = [r2, r1];
+          r1 = Math.max(0, r1);
+          r2 = Math.min(L.length - 1, r2);
+        }
+      }
+      let mm;
+      if ((mm = rest.match(/^s(?:ubstitute)?([^\w\s])(.*)$/))) {
+        const d = mm[1];
+        const parts = this.splitDelim(mm[2], d);
+        const pat = parts[0] === '' ? this.lastSearch : parts[0];
+        const rep = parts[1] || '';
+        const flags = parts[2] || '';
+        if (!pat) return this.say('E35: No previous regular expression', true);
+        this.lastSearch = pat;
+        const re = makeRe(pat, (flags.includes('g') ? 'g' : '') + (flags.includes('i') ? 'i' : ''));
+        if (!re) return this.say('E486: bad pattern', true);
+        let count = 0,
+          last = -1;
+        for (let i = r1; i <= r2; i++) {
+          const before = L[i];
+          const after = before.replace(re, (...args) => {
+            count++;
+            return args[0].replace(new RegExp(re.source, re.flags.replace('g', '')), vimRep(rep));
+          });
+          if (after !== before) {
+            L[i] = after;
+            last = i;
+          }
+        }
+        if (last >= 0) {
+          const split = [];
+          for (let i = 0; i < L.length; i++) split.push(...L[i].split('\n'));
+          b.lines = split;
+          this.setCur(Math.min(last, b.lines.length - 1), fnbCol(b.lines[Math.min(last, b.lines.length - 1)]));
+          this.say(count > 1 ? `${count} substitutions` : '');
+        } else this.say('E486: Pattern not found: ' + pat, true);
+        return;
+      }
+      if ((mm = rest.match(/^(g|v|g!)([^\w\s])(.*)$/))) {
+        const parts = this.splitDelim(mm[3], mm[2]);
+        const re = makeRe(parts[0], '');
+        const cmd = (parts[1] || 'p').trim();
+        const inv = mm[1] !== 'g';
+        if (!re) return;
+        if (!m || !m[1]) {
+          r1 = 0;
+          r2 = L.length - 1;
+        }
+        if (cmd === 'd') {
+          const keep = [];
+          L.forEach((line, i) => {
+            if (i < r1 || i > r2 || re.test(line) === inv) keep.push(line);
+          });
+          b.lines = keep.length ? keep : [''];
+          this.setCur(Math.min(b.r, b.lines.length - 1), 0);
+        } else this.say('Only :g/pattern/d is supported here');
+        return;
+      }
+      if (rest === 'd') {
+        this.setReg(null, L.slice(r1, r2 + 1).join('\n'), true);
+        L.splice(r1, r2 - r1 + 1);
+        if (!L.length) L.push('');
+        this.setCur(Math.min(r1, L.length - 1), 0);
+        return;
+      }
+      if (rest === 'sort' || rest === 'sort!') {
+        if (!m || !m[1]) {
+          r1 = 0;
+          r2 = L.length - 1;
+        }
+        const seg = L.slice(r1, r2 + 1).sort();
+        if (rest === 'sort!') seg.reverse();
+        L.splice(r1, r2 - r1 + 1, ...seg);
+        return;
+      }
+      if (/^(w|write|up|update)$/.test(rest)) {
+        this.say(`"${b.name}" ${L.length}L written`);
+        this.emit('write');
+        return;
+      }
+      if (/^(q|q!|qa|qa!|quit|wq|x|wqa|xa)$/.test(rest)) {
+        this.emit('quit');
+        return;
+      }
+      if (/^e!?$/.test(rest)) {
+        this.emit('reset');
+        return;
+      }
+      if (/^noh(lsearch)?$/.test(rest)) {
+        this.hl = false;
+        return;
+      }
+      if (/^(h|help)\b/.test(rest)) {
+        this.emit('help');
+        return;
+      }
+      this.say(`E492: Not an editor command: ${s}`, true);
+    }
+    splitDelim(s, d) {
+      const parts = [];
+      let cur = '';
+      for (let i = 0; i < s.length; i++) {
+        if (s[i] === '\\' && s[i + 1] === d) {
+          cur += d;
+          i++;
+        } else if (s[i] === d) {
+          parts.push(cur);
+          cur = '';
+        } else cur += s[i];
+      }
+      parts.push(cur);
+      return parts;
+    }
+
+    // ---------- flash ----------
+    computeFlash(pat, prev) {
+      const out = [];
+      if (pat) {
+        const icase = pat === pat.toLowerCase();
+        const P = icase ? pat.toLowerCase() : pat;
+        const { r: cr, c: cc } = this.cur;
+        this.L.forEach((line, r) => {
+          const hay = icase ? line.toLowerCase() : line;
+          let i = hay.indexOf(P);
+          while (i >= 0) {
+            if (!(r === cr && i === cc)) out.push({ r, c: i, next: line[i + P.length] });
+            i = hay.indexOf(P, i + 1);
+          }
+        });
+        const W = this.columns;
+        const from = cr * W + cc;
+        out.sort((a, b) => Math.abs(a.r * W + a.c - from) - Math.abs(b.r * W + b.c - from));
+        const skip = new Set();
+        for (const m of out)
+          if (m.next !== undefined) {
+            skip.add(m.next);
+            if (icase) {
+              skip.add(m.next.toLowerCase());
+              skip.add(m.next.toUpperCase());
+            }
+          }
+        const pool = (LABELS + LABELS.toUpperCase()).split('').filter((l) => !skip.has(l));
+        const used = new Set();
+        for (const m of out) {
+          const old = prev.get(m.r + ':' + m.c);
+          if (old && pool.includes(old) && !used.has(old) && old === old.toLowerCase()) {
+            m.label = old;
+            used.add(old);
+          }
+        }
+        let pi = 0;
+        for (const m of out) {
+          if (m.label) continue;
+          while (pi < pool.length && used.has(pool[pi])) pi++;
+          if (pi >= pool.length) break;
+          m.label = pool[pi];
+          used.add(pool[pi]);
+        }
+        prev.clear();
+        for (const m of out) if (m.label) prev.set(m.r + ':' + m.c, m.label);
+      }
+      this.flash = { pat, matches: out };
+    }
+    *flashJump() {
+      let pat = '';
+      const prev = new Map();
+      this.computeFlash(pat, prev);
+      for (;;) {
+        const k = yield 'text';
+        if (k === '<Esc>' || k === '<C-c>') {
+          this.flash = null;
+          return null;
+        }
+        if (k === '<BS>') {
+          if (!pat) {
+            this.flash = null;
+            return null;
+          }
+          pat = pat.slice(0, -1);
+          this.computeFlash(pat, prev);
+          continue;
+        }
+        if (k === '<CR>') {
+          const m = this.flash.matches[0];
+          this.flash = null;
+          return m || null;
+        }
+        if (k.length !== 1) continue;
+        if (pat) {
+          const hit = this.flash.matches.find((m) => m.label === k);
+          if (hit) {
+            this.flash = null;
+            return hit;
+          }
+        }
+        pat += k;
+        this.computeFlash(pat, prev);
+        if (!this.flash.matches.length) {
+          this.flash = null;
+          return null;
+        }
+      }
+    }
+    tsCandidates() {
+      const t = this.text();
+      const at = this.off(this.buf.r, this.buf.c);
+      const cands = [];
+      const add = (s, e) => {
+        if (s <= at && at < e && e > s) cands.push({ s, e });
+      };
+      const line = this.L[this.buf.r];
+      const lo = this.off(this.buf.r, 0);
+      if (isKW(t[at])) {
+        let s = at,
+          e = at;
+        while (s > 0 && isKW(t[s - 1])) s--;
+        while (e < t.length && isKW(t[e])) e++;
+        add(s, e);
+      }
+      for (const q of QUOTES) for (const p of this.quotePairs(q)) add(p.o, p.c + 1);
+      for (const p of this.bracketPairs('([{')) {
+        add(p.o, p.c + 1);
+        let s = p.o;
+        while (s > 0 && /[\w.$]/.test(t[s - 1])) s--;
+        if (s < p.o) add(s, p.c + 1);
+      }
+      const f = fnbCol(line);
+      add(lo + f, lo + line.replace(/[;,]?\s*$/, '').length);
+      add(lo + f, lo + line.length);
+      for (const fn of this.fnHeaders()) add(this.off(fn.r1, fnbCol(this.L[fn.r1])), this.off(fn.r2, this.L[fn.r2].length));
+      const seen = new Set();
+      return cands
+        .sort((a, b) => a.e - a.s - (b.e - b.s))
+        .filter((c) => {
+          const key = c.s + ':' + c.e;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, 26)
+        .map((c, i) => ({ ...c, label: 'abcdefghijklmnopqrstuvwxyz'[i] }));
+    }
+    *flashTS() {
+      const nodes = this.tsCandidates();
+      if (!nodes.length) return null;
+      this.tsnodes = nodes;
+      const k = yield 'text';
+      this.tsnodes = null;
+      const hit = k === '<CR>' ? nodes[0] : nodes.find((n) => n.label === k);
+      return hit ? { kind: 'char', s: hit.s, e: hit.e } : null;
+    }
+
+    // ---------- leader / buffers / picker / LSP-ish ----------
+    *leader() {
+      const k = yield 'cmd';
+      if (k === ' ') return yield* this.pickFiles();
+      if (k === '`') return this.altBuffer();
+      if (k === 'f') {
+        const k2 = yield 'cmd';
+        if (k2 === 'f' || k2 === 'F') return yield* this.pickFiles();
+        if (k2 === 'b') return yield* this.pickFiles(true);
+        return this.say('<leader>f' + k2 + ' is not in this game');
+      }
+      if (k === ',') return yield* this.pickFiles(true);
+      if (k === 'b') {
+        const k2 = yield 'cmd';
+        if (k2 === 'd') return this.closeBuffer();
+        if (k2 === 'b') return this.altBuffer();
+        if (k2 === 'o') {
+          this.open = [this.buf];
+          return;
+        }
+        return;
+      }
+      if (k === 'c') {
+        const k2 = yield 'cmd';
+        if (k2 === 'r') return yield* this.rename();
+        if (k2 === 'd') return this.lineDiag();
+        return this.say('<leader>c' + k2 + ' is not in this game');
+      }
+      if (k === 'q') {
+        const k2 = yield 'cmd';
+        if (k2 === 'q') this.emit('quit');
+        return;
+      }
+      if (k === 's') {
+        const k2 = yield 'cmd';
+        if (k2 === 'g' || k2 === 'w') return this.say('Grep is not in this game; try * or /');
+        return;
+      }
+      if (k === '<Esc>') return;
+      this.say(`<leader>${k} is not in this game`);
+    }
+    openBuffer(bf) {
+      if (bf === this.buf) return;
+      if (!this.open.includes(bf)) this.open.push(bf);
+      this.alt = this.buf;
+      this.buf = bf;
+    }
+    cycleBuffer(d) {
+      const i = this.open.indexOf(this.buf);
+      const j = (((i + d) % this.open.length) + this.open.length) % this.open.length;
+      this.openBuffer(this.open[j]);
+    }
+    altBuffer() {
+      if (this.alt && this.open.includes(this.alt)) this.openBuffer(this.alt);
+    }
+    closeBuffer() {
+      if (this.open.length <= 1) return this.say('Last buffer — nothing to switch to');
+      const i = this.open.indexOf(this.buf);
+      this.open.splice(i, 1);
+      const nb = this.alt && this.open.includes(this.alt) ? this.alt : this.open[Math.min(i, this.open.length - 1)];
+      this.buf = nb;
+      this.alt = null;
+    }
+    fuzzy(q, s) {
+      if (!q) return 1;
+      let i = 0,
+        score = 0,
+        last = -2;
+      const S = s.toLowerCase();
+      for (const ch of q.toLowerCase()) {
+        const j = S.indexOf(ch, i);
+        if (j < 0) return 0;
+        score += j === last + 1 ? 3 : 1;
+        last = j;
+        i = j + 1;
+      }
+      return score;
+    }
+    *pickFiles(buffersOnly) {
+      this.picker = { title: buffersOnly ? 'Buffers' : 'Files', q: '', idx: 0, items: [] };
+      const list = buffersOnly ? this.open : this.files;
+      const refresh = () => {
+        const p = this.picker;
+        p.items = list
+          .map((bf) => ({ bf, s: this.fuzzy(p.q, bf.name) }))
+          .filter((x) => x.s > 0)
+          .sort((a, b) => b.s - a.s)
+          .map((x) => x.bf);
+        p.idx = Math.min(p.idx, Math.max(0, p.items.length - 1));
+      };
+      refresh();
+      for (;;) {
+        const k = yield 'text';
+        const p = this.picker;
+        if (k === '<Esc>' || k === '<C-c>') break;
+        if (k === '<CR>') {
+          const bf = p.items[p.idx];
+          this.picker = null;
+          if (bf) {
+            this.jumps.push({ buf: this.buf, r: this.buf.r, c: this.buf.c });
+            this.openBuffer(bf);
+          }
+          return;
+        }
+        if (k === '<C-j>' || k === '<C-n>' || k === '<Down>') p.idx = Math.min(p.items.length - 1, p.idx + 1);
+        else if (k === '<C-k>' || k === '<C-p>' || k === '<Up>') p.idx = Math.max(0, p.idx - 1);
+        else if (k === '<BS>') p.q = p.q.slice(0, -1);
+        else if (k.length === 1) {
+          p.q += k;
+          p.idx = 0;
+        }
+        refresh();
+      }
+      this.picker = null;
+    }
+    *rename() {
+      const w = this.wordUnder();
+      if (!w) return;
+      const nn = yield* this.prompt('New Name: ', w.word);
+      if (!nn || nn === w.word) return;
+      const re = new RegExp('\\b' + w.word + '\\b', 'g');
+      let total = 0,
+        files = 0;
+      for (const bf of this.files) {
+        if (bf.ft !== this.buf.ft) continue;
+        const t = bf.text();
+        const cnt = (t.match(re) || []).length;
+        if (!cnt) continue;
+        total += cnt;
+        files++;
+        if (bf !== this.buf) {
+          bf.undo.push({ lines: bf.lines.slice(), r: bf.r, c: bf.c });
+          bf.redo = [];
+        }
+        bf.lines = t.replace(re, nn).split('\n');
+      }
+      this.say(`Renamed ${total} instance${total > 1 ? 's' : ''} in ${files} file${files > 1 ? 's' : ''}`);
+    }
+    gotoDef() {
+      const w = this.wordUnder();
+      if (!w) return;
+      const re = new RegExp(
+        `(\\b(function|const|let|var|class|def|local function|local)\\s+${w.word}\\b)|(\\b${w.word}\\s*=\\s*(async\\s*)?(function\\b|\\())`
+      );
+      for (const bf of [this.buf, ...this.files.filter((f) => f !== this.buf)]) {
+        for (let r = 0; r < bf.lines.length; r++) {
+          const m = bf.lines[r].match(re);
+          if (m) {
+            const c = bf.lines[r].indexOf(w.word, m.index);
+            this.jumps.push({ buf: this.buf, r: this.buf.r, c: this.buf.c });
+            this.jumpFwd = [];
+            this.openBuffer(bf);
+            this.setCur(r, c);
+            return;
+          }
+        }
+      }
+      this.say('No definition found for ' + w.word, true);
+    }
+    refsList() {
+      const w = this.wordUnder();
+      if (!w) return;
+      const re = new RegExp('\\b' + w.word + '\\b', 'g');
+      let n = 0;
+      for (const bf of this.files) n += (bf.text().match(re) || []).length;
+      this.say(`${n} references to ${w.word} — use ]] and [[ to hop between them`);
+    }
+    jumpRef(fwd, n) {
+      const w = this.wordUnder();
+      if (!w || w.s > this.buf.c) return;
+      const re = new RegExp('\\b' + w.word + '\\b', 'g');
+      const save = this.buf.c;
+      this.buf.c = w.s;
+      const p = this.searchFromRe(re, fwd, n);
+      this.buf.c = save;
+      this.msg = '';
+      if (p) this.setCur(p.r, p.c);
+    }
+    diagnostics(bf) {
+      bf = bf || this.buf;
+      const out = [];
+      for (const d of this.diagDefs) {
+        if (d.file && d.file !== bf.name) continue;
+        const re = new RegExp(d.pattern, 'g');
+        bf.lines.forEach((line, r) => {
+          re.lastIndex = 0;
+          let m;
+          while ((m = re.exec(line))) {
+            out.push({ r, c: m.index, len: Math.max(1, m[0].length), msg: d.message, sev: d.severity || 'error' });
+            if (!m[0].length) re.lastIndex++;
+          }
+        });
+      }
+      return out.sort((a, b) => a.r - b.r || a.c - b.c);
+    }
+    jumpDiag(fwd, n) {
+      const ds = this.diagnostics();
+      if (!ds.length) return this.say('No more diagnostics');
+      let { r, c } = this.cur;
+      let hit = null;
+      for (let i = 0; i < n; i++) {
+        hit = fwd ? ds.find((d) => d.r > r || (d.r === r && d.c > c)) || ds[0] : [...ds].reverse().find((d) => d.r < r || (d.r === r && d.c < c)) || ds[ds.length - 1];
+        r = hit.r;
+        c = hit.c;
+      }
+      this.jumps.push({ buf: this.buf, r: this.buf.r, c: this.buf.c });
+      this.setCur(hit.r, hit.c);
+      this.popup = { r: hit.r, c: hit.c, text: hit.msg, sev: hit.sev };
+    }
+    lineDiag() {
+      const d = this.diagnostics().find((x) => x.r === this.buf.r);
+      if (d) this.popup = { r: d.r, c: d.c, text: d.msg, sev: d.sev };
+    }
+  }
+
+  G.LazyVimEngine = { Vim, Buffer, vimRe, makeRe };
+  if (typeof module !== 'undefined') module.exports = G.LazyVimEngine;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* LazyQuest game layer: level parsing, gems, targets, bans, scoring. Pure (no DOM). */
+(function (G) {
+  'use strict';
+  const { Vim } = G.LazyVimEngine;
+  const GLOBAL_BANNED = ['<Left>', '<Right>', '<Up>', '<Down>'];
+
+  function tok(s) {
+    const out = [];
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] === '<') {
+        const j = s.indexOf('>', i);
+        const t = j > i ? s.slice(i, j + 1) : '';
+        if (/^<(flash|label):/.test(t) || /^<[A-Za-z][-A-Za-z0-9]*>$/.test(t)) {
+          out.push(t);
+          i = j;
+          continue;
+        }
+      }
+      out.push(s[i]);
+    }
+    return out;
+  }
+
+  function parseText(text) {
+    let cursor = null;
+    const gems = [];
+    const lines = text.split('\n').map((line, r) => {
+      let s = '';
+      for (const ch of line) {
+        if (ch === '‸') cursor = [r, s.length];
+        else if (ch === '¤') gems.push([r, s.length]);
+        else s += ch;
+      }
+      return s;
+    });
+    return { text: lines.join('\n'), cursor, gems };
+  }
+
+  const norm = (t) =>
+    t
+      .split('\n')
+      .map((l) => l.replace(/\s+$/, ''))
+      .join('\n')
+      .replace(/\n+$/, '');
+
+  class Game {
+    constructor(level, opts) {
+      opts = opts || {};
+      this.level = level;
+      const files = level.files.map((f) => {
+        const p = parseText(f.text);
+        return { name: f.name, text: p.text, cursor: p.cursor || [0, 0], open: f.open, gems: p.gems };
+      });
+      this.gems = [];
+      files.forEach((f) => f.gems.forEach(([r, c]) => this.gems.push({ file: f.name, r, c, got: false })));
+      this.vim = new Vim({ files, diagnostics: level.diagnostics, hover: level.hover, jk: opts.jk });
+      this.targets = {};
+      for (const f of level.files) if (f.target !== undefined) this.targets[f.name] = f.target;
+      this.banned = new Set([...(level.banned || []), ...GLOBAL_BANNED]);
+      this.keys = 0;
+      this.won = false;
+      this.rejected = null;
+    }
+    get idle() {
+      return !this.vim.gen;
+    }
+    press(key, counted) {
+      this.rejected = null;
+      if (this.won) return false;
+      if (this.vim.ctx === 'cmd' && this.banned.has(key)) {
+        this.rejected = key;
+        return false;
+      }
+      if (counted !== false) this.keys++;
+      this.vim.feed(key);
+      this.check();
+      return true;
+    }
+    collect() {
+      const v = this.vim;
+      if (!(this.idle || v.mode === 'visual' || v.mode === 'vline')) return [];
+      if (v.flash || v.cmdline || v.picker) return [];
+      const got = [];
+      for (const g of this.gems)
+        if (!g.got && g.file === v.buf.name && g.r === v.buf.r && g.c === v.buf.c) {
+          g.got = true;
+          got.push(g);
+        }
+      return got;
+    }
+    targetStatus() {
+      const out = [];
+      for (const [name, want] of Object.entries(this.targets)) {
+        const bf = this.vim.files.find((f) => f.name === name);
+        out.push({ name, ok: norm(bf.text()) === norm(want), want, have: bf.text() });
+      }
+      return out;
+    }
+    check() {
+      this.lastGems = this.collect();
+      const gemsOk = this.gems.every((g) => g.got);
+      const tOk = this.targetStatus().every((t) => t.ok);
+      if (gemsOk && tOk && this.idle && this.vim.mode === 'normal') this.won = true;
+      return this.won;
+    }
+    stars(par) {
+      if (this.keys <= par) return 3;
+      if (this.keys <= par + Math.max(3, Math.ceil(par * 0.5))) return 2;
+      return 1;
+    }
+  }
+
+  // Expand a level's solution into concrete keys. <flash:pat@r:c> = s + pat + label,
+  // <label:pat@r:c> = pat + label (for remote `r`). Labels come from simulating the engine.
+  function expandSolution(level) {
+    const g = new Game(level);
+    const keys = [];
+    const errors = [];
+    for (const t of tok(level.solution)) {
+      const m = t.match(/^<(flash|label):(.+)@(\d+):(\d+)>$/);
+      if (!m) {
+        keys.push(t);
+        if (!g.press(t)) errors.push('rejected ' + t);
+        continue;
+      }
+      const seq = (m[1] === 'flash' ? ['s'] : []).concat(m[2].split(''));
+      for (const k of seq) {
+        keys.push(k);
+        g.press(k);
+      }
+      const fl = g.vim.flash;
+      const hit = fl && fl.matches.find((x) => x.r === +m[3] && x.c === +m[4]);
+      if (!hit || !hit.label) {
+        errors.push(`no flash label for ${t}`);
+        continue;
+      }
+      keys.push(hit.label);
+      g.press(hit.label);
+    }
+    return { keys, game: g, errors };
+  }
+
+  G.LazyQuest = { Game, tok, parseText, expandSolution, GLOBAL_BANNED };
+  if (typeof module !== 'undefined') module.exports = G.LazyQuest;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* LazyQuest levels. In file text, ‸ marks the cursor and ¤ marks a gem on the next character.
+   `solution` is the reference run; its key count is the level's par. */
+(function (G) {
+  'use strict';
+  const t = (...lines) => lines.join('\n');
+  const MOVE = ['h', 'j', 'k', 'l'];
+  const WORDS = ['w', 'b', 'e', 'W', 'B', 'E'];
+
+  const CHAPTERS = [
+    { id: 1, name: 'Home Row Hollow', blurb: 'Your fingers rest on h j k l. Learn to walk, count and hop.' },
+    { id: 2, name: 'Flashwood', blurb: 'flash.nvim turns the screen into a jump map. Stop walking, start teleporting.' },
+    { id: 3, name: 'Insert Isles', blurb: 'Write text, then leave Insert mode the moment you are done.' },
+    { id: 4, name: 'Operator Keep', blurb: 'Verbs and motions: d, c, y combine with everything you know.' },
+    { id: 5, name: 'Textobject Temple', blurb: 'mini.ai gives you words, quotes, brackets, arguments, indents and functions.' },
+    { id: 6, name: 'Surround Spire', blurb: 'mini.surround adds, deletes and swaps the things around your text.' },
+    { id: 7, name: 'Visual Vale', blurb: 'Select first, then act. Comment, indent, move and shout.' },
+    { id: 8, name: 'LSP Lighthouse', blurb: 'Diagnostics, go-to-definition, rename, buffers and the file picker.' },
+  ];
+
+  const LEVELS = [
+    // ───────────── Chapter 1 ─────────────
+    {
+      id: '1-1',
+      ch: 1,
+      title: 'First Steps',
+      story: 'The Mouse King stole the mouse from every editor in Bufferia, and good riddance. Here you move with four keys under your right hand.',
+      goal: 'Collect every gem.',
+      teaches: [
+        { k: 'h', d: 'left' },
+        { k: 'j', d: 'down' },
+        { k: 'k', d: 'up' },
+        { k: 'l', d: 'right' },
+      ],
+      hint: 'j looks like an arrow pointing down. Hold your fingers on j k l ; like typing.',
+      files: [{ name: 'welcome.txt', text: t('‸Bufferia has no mouse.', 'Only ¤keys.', 'h left   l ¤right', 'j down   k ¤up', 'Grab every gem¤.') }],
+      solution: 'jllllljlllllljjlll',
+    },
+    {
+      id: '1-2',
+      ch: 1,
+      title: 'Counting Stones',
+      story: 'LazyVim shows relative line numbers in the gutter. The number next to a line is how far away it is. Put a count before a move to repeat it.',
+      goal: 'Collect the three gems using counts like 8j and 11l.',
+      teaches: [
+        { k: '5j', d: 'move 5 lines down (any count + motion)' },
+        { k: '3l', d: 'move 3 columns right' },
+      ],
+      hint: 'Read the gutter: the row with the first gem says how many lines down it is.',
+      files: [
+        {
+          name: 'stones.txt',
+          text: t(
+            '‸The gutter on the left counts lines away from you.',
+            'Type a number before a move to repeat it.',
+            '5j jumps five lines down. 3l steps three right.',
+            '',
+            '  ·  ·  ·  ·  ·',
+            '  ·  ·  ·  ·  ·',
+            '  ·  ·  ·  ·  ·',
+            '  ·  ·  ·  ·  ·',
+            '  ·  ·  ·  ¤·  ·',
+            '  ·  ·  ·  ·  ·',
+            '  ·  ¤·  ·  ·  ·',
+            '  ·  ·  ·  ·  ·',
+            '  ·  ·  ·  ·  ¤·'
+          ),
+        },
+      ],
+      solution: '8j11l2j6h2j9l',
+    },
+    {
+      id: '1-3',
+      ch: 1,
+      title: 'Word Hopping',
+      story: 'Words are stepping stones. w hops to the start of the next word, e lands on the end of a word, b hops back. h and l are sealed on this crossing.',
+      goal: 'Collect the gems with w, e and b. Counts work too: 3w.',
+      teaches: [
+        { k: 'w', d: 'start of next word' },
+        { k: 'e', d: 'end of word' },
+        { k: 'b', d: 'back to start of word' },
+        { k: 'W B E', d: 'same, but WORDS split only on spaces' },
+      ],
+      banned: ['h', 'l'],
+      hint: '3w hops three words at once.',
+      files: [
+        {
+          name: 'river.txt',
+          text: t(
+            '‸Words are stepping ¤stones across the river.',
+            'w hops to the start of the nex¤t word,',
+            'e lands on the ¤end of a word,',
+            'and b hops back to the star¤t.',
+            'No h or l allowed on this crossing!'
+          ),
+        },
+      ],
+      solution: '3wj3ej4bj3e',
+    },
+    {
+      id: '1-4',
+      ch: 1,
+      title: 'Edges of the World',
+      story: 'Lines have edges and files have ends. 0 goes to column zero, ^ to the first letter, $ to the last character. gg flies to the top and G drops to the bottom.',
+      goal: 'Collect all five gems. h and l are sealed.',
+      teaches: [
+        { k: '0', d: 'start of line' },
+        { k: '^', d: 'first non-blank character' },
+        { k: '$', d: 'end of line' },
+        { k: 'gg', d: 'first line' },
+        { k: 'G', d: 'last line (5G = line 5)' },
+      ],
+      banned: ['h', 'l'],
+      hint: 'Neovim keeps your column when you jump with G or gg. After $ that column is "the end".',
+      files: [
+        {
+          name: 'edges.txt',
+          text: t(
+            '¤    ¤Indented ‸lines hide their first letter.',
+            '0 jumps to column zero, ^ to the first letter,',
+            '$ runs to the very end of the line¤.',
+            'gg flies to the top. G drops to the bottom.',
+            '',
+            '    ¤The bottom line ends with a gem¤!'
+          ),
+        },
+      ],
+      solution: '02j$G^gg',
+    },
+
+    // ───────────── Chapter 2 ─────────────
+    {
+      id: '2-1',
+      ch: 2,
+      title: 'Find a Letter',
+      story: 'f then a letter jumps to that letter. With flash.nvim it even crosses lines. Press f again to hop to the next match. t stops one step before the letter, and F and T go backwards.',
+      goal: 'Collect the gems. h, l and word motions are sealed.',
+      teaches: [
+        { k: 'f{char}', d: 'jump to char (flash: any line)' },
+        { k: 'f again', d: 'next match (F = previous)' },
+        { k: 't{char}', d: 'jump to just before char' },
+        { k: 'F T', d: 'backwards versions' },
+      ],
+      banned: ['h', 'l', ...WORDS],
+      hint: 'After fp, pressing f again repeats the search for p. Any other key ends the repeat.',
+      files: [
+        {
+          name: 'flash.txt',
+          text: t('‸Flash finds letters fast: ¤press f and a letter.', 'Press f again to ho¤p to the next one.', 'Use t to stop one ¤step before a¤ letter.'),
+        },
+      ],
+      solution: 'fpftlFs',
+    },
+    {
+      id: '2-2',
+      ch: 2,
+      title: 'Flash Jump',
+      story: 'Press s and type the first letters of where you want to go. Every match gets a coloured label. Type the label and you are there. Look at your target first, then type two letters from it.',
+      goal: 'Collect the gems with s. Walking, words and f/t are sealed.',
+      teaches: [
+        { k: 's', d: 'flash jump: type chars, then the label' },
+        { k: '<CR>', d: 'jump to the nearest match' },
+      ],
+      banned: [...MOVE, ...WORDS, 'f', 't', 'F', 'T', '/', '?'],
+      hint: 'Labels never use the letter that comes next in a match, so if you are not sure, keep typing the word.',
+      files: [
+        {
+          name: 'jump.txt',
+          text: t(
+            '‸Flash turns the whole screen into a jump map.',
+            'Press s, type the first letters of where you want to go,',
+            'and coloured ¤labels appear next to every match.',
+            'Type the label to land there. No counting, no stepping.',
+            '',
+            'The trick is to look at your ¤target first,',
+            'then type two letters from it. Labels ¤never',
+            'reuse the next letter of a match, so you can',
+            'keep typing the word if you are not ¤sure.'
+          ),
+        },
+      ],
+      solution: '<flash:la@2:13><flash:ta@5:29><flash:ne@6:38><flash:su@8:36>',
+    },
+    {
+      id: '2-3',
+      ch: 2,
+      title: 'Search the Logs',
+      story: 'Something is failing on the server. / starts a search, Enter jumps to the match, n goes to the next one and N to the previous. * searches for the word under the cursor.',
+      goal: 'Land on the third ERROR, then on the second mention of mara.',
+      teaches: [
+        { k: '/text<CR>', d: 'search forward' },
+        { k: 'n N', d: 'next / previous match' },
+        { k: '*', d: 'search word under cursor' },
+        { k: '<Esc>', d: 'clear the highlight' },
+      ],
+      banned: [...MOVE, ...WORDS, 'f', 't', 'F', 'T', 's'],
+      hint: 'Searches ignore case unless you type a capital letter.',
+      files: [
+        {
+          name: 'server.log',
+          text: t(
+            '‸[09:00] INFO  boot ok',
+            '[09:01] WARN  disk 81%',
+            '[09:02] ERROR db timeout',
+            '[09:03] INFO  retry',
+            '[09:04] ERROR db timeout',
+            '[09:05] INFO  cache warm',
+            '[09:06] ¤ERROR auth failed',
+            '[09:07] INFO  user mara logged in',
+            '[09:08] INFO  user ¤mara logged out'
+          ),
+        },
+      ],
+      solution: '/err<CR>nn/mar<CR>*',
+    },
+    {
+      id: '2-4',
+      ch: 2,
+      title: 'Matching Pairs',
+      story: '% jumps between matching brackets. } and { jump between paragraphs, which are blocks separated by blank lines.',
+      goal: 'Collect the gems. Only j, k, $, %, { and } are needed.',
+      teaches: [
+        { k: '%', d: 'matching bracket' },
+        { k: '} {', d: 'next / previous blank line' },
+      ],
+      banned: ['h', 'l', ...WORDS, 'f', 't', 'F', 'T', 's', '/', '?'],
+      hint: '% uses the first bracket at or after the cursor, so go to the { first with $.',
+      files: [
+        {
+          name: 'bakery.js',
+          text: t(
+            '‸function bake(cake) {',
+            '  if (cake.ready) {',
+            '    serve(cake);',
+            '  }',
+            '  return cake;',
+            '¤}',
+            '¤',
+            'function clean(kitchen) {',
+            '  kitchen.wipe();',
+            '¤}'
+          ),
+        },
+      ],
+      solution: '$%}j$%',
+    },
+    {
+      id: '2-5',
+      ch: 2,
+      title: 'Remote Grab',
+      story: 'In LazyVim, r after an operator is remote flash. yr jumps away, yanks a text object there, and brings the cursor straight back. You never leave your spot.',
+      goal: 'Put the hero\'s name between the quotes: yr, flash to Wren, iw, then p.',
+      teaches: [{ k: 'yr{flash}iw', d: 'remote yank: grab a word without moving' }],
+      hint: 'yr, type wr, then the label, then iw. The cursor jumps back to the quote and p pastes after it.',
+      files: [
+        {
+          name: 'hero.js',
+          text: t('let hero = ‸"";', '// Our hero, Wren, guards the keys.'),
+          target: t('let hero = "Wren";', '// Our hero, Wren, guards the keys.'),
+        },
+      ],
+      solution: 'yr<label:wr@1:13>iwp',
+    },
+
+    // ───────────── Chapter 3 ─────────────
+    {
+      id: '3-1',
+      ch: 3,
+      title: 'Insert and Append',
+      story: 'i inserts before the cursor and a appends after it. I and A jump to the start or end of the line first. Esc takes you back to Normal mode, which is where you should spend most of your time.',
+      goal: 'Make the text match the target on the right.',
+      teaches: [
+        { k: 'i a', d: 'insert before / after cursor' },
+        { k: 'I A', d: 'insert at line start / end' },
+        { k: '<Esc>', d: 'back to Normal mode' },
+      ],
+      hint: 'A jumps to the end of the line, wherever the cursor is.',
+      files: [
+        {
+          name: 'greeting.txt',
+          text: t('‸ello, Bufferia', 'The cursor is ready', 'remember to press Escape'),
+          target: t('Hello, Bufferia!', 'The cursor is ready to learn.', 'Always remember to press Escape.'),
+        },
+      ],
+      solution: 'iH<Esc>A!<Esc>jA to learn.<Esc>jIAlways <Esc>A.<Esc>',
+    },
+    {
+      id: '3-2',
+      ch: 3,
+      title: 'Open a Line',
+      story: 'o opens a new line below and O opens one above, already indented. You also get mini.pairs: type a quote and its partner appears. Type the closing quote and the cursor just steps over it.',
+      goal: 'Add "map" above "rope" and "bread" below "lantern".',
+      teaches: [
+        { k: 'o O', d: 'open line below / above' },
+        { k: '"', d: 'mini.pairs closes quotes and brackets' },
+      ],
+      hint: 'Type the full "bread", including both quotes. The second one steps over the auto-inserted quote.',
+      files: [
+        {
+          name: 'pack.js',
+          text: t('const pack = [', '  "rope",', '  ‸"lantern",', '];'),
+          target: t('const pack = [', '  "map",', '  "rope",', '  "lantern",', '  "bread",', '];'),
+        },
+      ],
+      solution: 'o"bread",<Esc>kkO"map",<Esc>',
+    },
+    {
+      id: '3-3',
+      ch: 3,
+      title: 'Small Repairs',
+      story: 'Small fixes, all from Normal mode. x deletes a character, r replaces one, ~ flips its case and J joins the next line onto this one.',
+      goal: 'Repair the sentence so it matches the target.',
+      teaches: [
+        { k: 'x', d: 'delete character' },
+        { k: 'r{char}', d: 'replace character' },
+        { k: '~', d: 'toggle case' },
+        { k: 'J', d: 'join lines' },
+      ],
+      hint: 'fg lands on the first g of "Kingg". J adds the space for you.',
+      files: [
+        {
+          name: 'notice.txt',
+          text: t('‸the Mouse Kingg stole', 'the keys of', 'Bufferia, we want them back!'),
+          target: 'The Mouse King stole the keys of Bufferia. We want them back!',
+        },
+      ],
+      solution: '~fgxJJf,r.w~',
+    },
+    {
+      id: '3-4',
+      ch: 3,
+      title: 'Auto Pairs',
+      story: 'mini.pairs closes (, [, { and quotes for you. When the closer is already there, typing it again just steps over it, so type as if it was not there.',
+      goal: 'Fill in the hero object.',
+      teaches: [
+        { k: '( [ {', d: 'auto-closed by mini.pairs' },
+        { k: ') ] }', d: 'steps over an existing closer' },
+        { k: '<BS>', d: 'between a pair, deletes both' },
+      ],
+      hint: 'Type the whole line normally, closers included. mini.pairs keeps it tidy.',
+      files: [
+        {
+          name: 'hero.js',
+          text: t('const hero = {', '  name: ‸,', '};'),
+          target: t('const hero = {', '  name: "Wren",', '  tools: ["map", "lamp"],', '};'),
+        },
+      ],
+      solution: 'i"Wren<Esc>otools: ["map", "lamp"],<Esc>',
+    },
+
+    // ───────────── Chapter 4 ─────────────
+    {
+      id: '4-1',
+      ch: 4,
+      title: 'The Delete Verb',
+      story: 'Operators are verbs. d means delete and it waits for a motion: dw deletes a word, d3w three words, dd a whole line, D to the end of the line.',
+      goal: 'Delete the extra words and lines.',
+      teaches: [
+        { k: 'dw d3w', d: 'delete word(s)' },
+        { k: 'dd', d: 'delete line' },
+        { k: 'D', d: 'delete to end of line' },
+      ],
+      hint: 'f. lands on the full stop, l steps past it, D removes the rest.',
+      files: [
+        {
+          name: 'cleanup.txt',
+          text: t(
+            '‸Remove the the extra words.',
+            'This line should not exist at all.',
+            'Keep this part. Cut everything after the full stop. Like this.',
+            'Delete these three words: alpha beta gamma'
+          ),
+          target: t('Remove the extra words.', 'Keep this part.', 'Delete these three words:'),
+        },
+      ],
+      solution: 'wdwjddf.lDjfad3w',
+    },
+    {
+      id: '4-2',
+      ch: 4,
+      title: 'The Change Verb',
+      story: 'c is delete-and-insert. cw changes to the end of the word, ce the same, cc the whole line, C to the end of the line. Type the new text and press Esc.',
+      goal: 'Make the code match the target.',
+      teaches: [
+        { k: 'cw ce', d: 'change word' },
+        { k: 'cc', d: 'change whole line' },
+        { k: 'C', d: 'change to end of line' },
+      ],
+      hint: 'cw on "colour" only changes the word. The = stays put.',
+      files: [
+        {
+          name: 'paint.js',
+          text: t('‸let colour = "red";', 'const size = 10;', '// TODO: write this comment properly'),
+          target: t('let color = "blue";', 'const size = 42;', '// Explains the colour choice'),
+        },
+      ],
+      solution: 'wcwcolor<Esc>frcwblue<Esc>jbce42<Esc>jcc// Explains the colour choice<Esc>',
+    },
+    {
+      id: '4-3',
+      ch: 4,
+      title: 'Yank and Put',
+      story: 'y yanks (copies), p puts after the cursor and P before it. ddp is a classic: cut a line and put it below the next one to swap them.',
+      goal: 'Fix the recipe order and add step four.',
+      teaches: [
+        { k: 'yy', d: 'yank line' },
+        { k: 'p P', d: 'put after / before' },
+        { k: 'ddp', d: 'swap two lines' },
+      ],
+      hint: 'Copy "step three" with yyp, then change its words.',
+      files: [
+        {
+          name: 'recipe.txt',
+          text: t('‸step two: mix', 'step one: crack eggs', 'step three: bake'),
+          target: t('step one: crack eggs', 'step two: mix', 'step three: bake', 'step four: eat'),
+        },
+      ],
+      solution: 'ddpGyypwcwfour<Esc>wwcweat<Esc>',
+    },
+    {
+      id: '4-4',
+      ch: 4,
+      title: 'Undo and Dot',
+      story: 'u undoes and Ctrl-r redoes. The dot . repeats your last change. Make the change once, jump to the next spot with n, and press dot.',
+      goal: 'Rename every "price" to "cost".',
+      teaches: [
+        { k: 'u', d: 'undo' },
+        { k: '<C-r>', d: 'redo' },
+        { k: '.', d: 'repeat last change' },
+        { k: '* n .', d: 'find next, repeat' },
+      ],
+      hint: '* searches for price. cwcost<Esc> once, then n . n . n .',
+      files: [
+        {
+          name: 'cart.js',
+          text: t('‸let total = price * qty;', 'log(price);', 'if (price > 100) discount(price);'),
+          target: t('let total = cost * qty;', 'log(cost);', 'if (cost > 100) discount(cost);'),
+        },
+      ],
+      solution: 'fp*cwcost<Esc>n.n.n.',
+    },
+    {
+      id: '4-5',
+      ch: 4,
+      title: 'Record a Macro',
+      story: 'qa starts recording into register a and q stops. @a plays it back and @@ plays the last macro again. Record one line, end on the next line, and the rest is free.',
+      goal: 'Turn the CSV into objects.',
+      teaches: [
+        { k: 'qa … q', d: 'record macro a' },
+        { k: '@a', d: 'play macro a' },
+        { k: '@@', d: 'play last macro again' },
+      ],
+      hint: 'Inside the macro: I{ name: "<Esc>, f, then cl", age: <Esc>, A },<Esc>, j0.',
+      files: [
+        {
+          name: 'people.csv',
+          text: t('‸ada,36', 'grace,85', 'linus,54'),
+          target: t('{ name: "ada", age: 36 },', '{ name: "grace", age: 85 },', '{ name: "linus", age: 54 },'),
+        },
+      ],
+      solution: 'qaI{ name: "<Esc>f,cl", age: <Esc>A },<Esc>j0q@a@@',
+    },
+
+    // ───────────── Chapter 5 ─────────────
+    {
+      id: '5-1',
+      ch: 5,
+      title: 'Inner Word',
+      story: 'Text objects describe a thing, not a direction. iw is the inner word under the cursor, aw is the word plus its space. ciw works from anywhere inside a word.',
+      goal: 'Rename the variable and delete the extra "really"s.',
+      teaches: [
+        { k: 'ciw', d: 'change inner word' },
+        { k: 'daw', d: 'delete a word (with space)' },
+      ],
+      hint: 'You are in the middle of userName, and ciw does not care where.',
+      files: [
+        {
+          name: 'user.js',
+          text: t('const user‸Name = getUser(id).name;', '// this is really really really slow'),
+          target: t('const displayName = getUser(id).name;', '// this is really slow'),
+        },
+      ],
+      solution: 'ciwdisplayName<Esc>jdaw.',
+    },
+    {
+      id: '5-2',
+      ch: 5,
+      title: 'Quotes and Brackets',
+      story: 'i" is inside quotes, i( inside parentheses, i[ inside brackets. mini.ai also searches forward, so ci" works even before the quotes. Add n for the next one: cin( skips past the brackets you are in.',
+      goal: 'Edit the strings and brackets to match.',
+      teaches: [
+        { k: 'ci" di( da[', d: 'quotes and brackets' },
+        { k: 'iq ib', d: 'any quote / any bracket' },
+        { k: 'cin(', d: 'next bracket pair (mini.ai)' },
+      ],
+      hint: 'From the start of the line, ci" jumps forward into "Hello".',
+      files: [
+        {
+          name: 'greet.js',
+          text: t('‸greet("Hello", (name || "stranger"));', 'const list = [1, 2, 3];'),
+          target: t('greet("Howdy", (user));', 'const list = [];'),
+        },
+      ],
+      solution: 'ci"Howdy<Esc>cin(user<Esc>jdi[',
+    },
+    {
+      id: '5-3',
+      ch: 5,
+      title: 'Arguments',
+      story: 'ia is an argument and aa is an argument with its comma. mini.ai knows where each argument starts and ends, even in nested calls.',
+      goal: 'Remove the unwanted arguments and change retries to 3.',
+      teaches: [
+        { k: 'daa', d: 'delete argument + comma' },
+        { k: 'cia', d: 'change argument' },
+      ],
+      hint: 'After daa the cursor sits on a comma, and cia picks the next argument.',
+      files: [
+        {
+          name: 'net.js',
+          text: t('resize(width, height, ‸true);', 'connect(host, port, timeout, retries);'),
+          target: t('resize(width, height);', 'connect(host, port, 3);'),
+        },
+      ],
+      solution: 'daajdaacia3<Esc>',
+    },
+    {
+      id: '5-4',
+      ch: 5,
+      title: 'Indent Scope',
+      story: 'ii is every line at this indent level, and ai adds the lines around it. In Python that makes cii the fastest way to rewrite a body.',
+      goal: 'Replace the whole body of greet with a single return.',
+      teaches: [
+        { k: 'cii dii', d: 'change / delete indent scope' },
+        { k: 'ai', d: 'scope plus border lines' },
+      ],
+      hint: 'cii keeps the indentation for you.',
+      files: [
+        {
+          name: 'greet.py',
+          text: t('def greet(name):', '    ‸print("hi")', '    print("debug 1")', '    print("debug 2")', '    return name', '', 'def bye():', '    pass'),
+          target: t('def greet(name):', '    return f"hi {name}"', '', 'def bye():', '    pass'),
+        },
+      ],
+      solution: 'ciireturn f"hi {name}"<Esc>',
+    },
+    {
+      id: '5-5',
+      ch: 5,
+      title: 'Functions',
+      story: 'With treesitter, if is the inside of a function and af is the whole function. cif rewrites a body, daf removes a function and yaf copies one.',
+      goal: 'Replace the body of add with a single line.',
+      teaches: [
+        { k: 'cif', d: 'change function body' },
+        { k: 'daf yaf', d: 'delete / yank whole function' },
+        { k: 'ig ag', d: 'whole buffer (yig = copy file)' },
+      ],
+      hint: 'The cursor does not have to be inside the body. cif finds the function.',
+      files: [
+        {
+          name: 'add.js',
+          text: t('‸function add(a, b) {', '  // TODO', '  console.log(a, b);', '  return a + b;', '}'),
+          target: t('function add(a, b) {', '  return a + b;', '}'),
+        },
+      ],
+      solution: 'cifreturn a + b;<Esc>',
+    },
+
+    // ───────────── Chapter 6 ─────────────
+    {
+      id: '6-1',
+      ch: 6,
+      title: 'Add Surroundings',
+      story: 'gsa means "surround add". Give it a motion or text object, then the character: gsaiw" wraps a word in quotes. ) wraps tightly and ( adds spaces inside.',
+      goal: 'Quote the string and wrap the maths and the argument.',
+      teaches: [
+        { k: 'gsaiw"', d: 'surround word with quotes' },
+        { k: 'gsat;)', d: 'surround until ; with ()' },
+        { k: ') vs (', d: 'tight vs spaced' },
+      ],
+      hint: 'gsaiw[ with the open bracket adds spaces inside: [ value ].',
+      files: [
+        {
+          name: 'wrap.js',
+          text: t('‸const msg = hello;', 'const total = price * qty;', 'log value'),
+          target: t('const msg = "hello";', 'const total = (price * qty);', 'log [ value ]'),
+        },
+      ],
+      solution: 'fhgsaiw"fpgsat;)fvgsaiw[',
+    },
+    {
+      id: '6-2',
+      ch: 6,
+      title: 'Delete and Replace',
+      story: 'gsd" deletes the quotes around the cursor. gsr\'" replaces single quotes with double ones. The cursor has to be inside the surrounding.',
+      goal: 'Fix the quotes, swap the brackets and drop the extra parentheses.',
+      teaches: [
+        { k: 'gsd(', d: 'delete surrounding (and inner spaces)' },
+        { k: "gsr'\"", d: 'replace surrounding' },
+      ],
+      hint: 'gsd( with an open bracket also removes the spaces just inside.',
+      files: [
+        {
+          name: 'swap.py',
+          text: t("‸title = 'Bufferia'", 'items = [[1, 2], [3, 4]]', 'call(( x ))'),
+          target: t('title = "Bufferia"', 'items = [(1, 2), [3, 4]]', 'call(x)'),
+        },
+      ],
+      solution: "fBgsr'\"jf1gsr])fxgsd(",
+    },
+    {
+      id: '6-3',
+      ch: 6,
+      title: 'Function Calls',
+      story: 'Surround with f and mini.surround asks for a function name. In Visual mode, gsa wraps the selection. V selects whole lines.',
+      goal: 'Wrap the lines in function calls.',
+      teaches: [
+        { k: 'gsa$f', d: 'wrap to end of line in a call' },
+        { k: 'V gsa)', d: 'surround a visual selection' },
+      ],
+      hint: 'gsa$f, then type upper and press Enter.',
+      files: [
+        {
+          name: 'calls.js',
+          text: t('‸user.name.trim()', 'total + tax'),
+          target: t('upper(user.name.trim())', 'log((total + tax) * 2)'),
+        },
+      ],
+      solution: 'gsa$fupper<CR>jVgsa)A * 2<Esc>Vgsaflog<CR>',
+    },
+
+    // ───────────── Chapter 7 ─────────────
+    {
+      id: '7-1',
+      ch: 7,
+      title: 'Select, Then Act',
+      story: 'v starts a selection and V selects whole lines. Move with any motion, then press an operator like d, y or c. o jumps to the other end of the selection.',
+      goal: 'Cut the middle of the sentence and the two junk lines.',
+      teaches: [
+        { k: 'v', d: 'visual (characters)' },
+        { k: 'V', d: 'visual line' },
+        { k: 'o', d: 'other end of selection' },
+      ],
+      hint: 'fR, v, f. (flash crosses the line), l, d.',
+      files: [
+        {
+          name: 'cut.txt',
+          text: t('‸Keep this. Remove from here', 'until here. Keep this too.', 'line to delete', 'line to delete', 'Last line stays.'),
+          target: t('Keep this. Keep this too.', 'Last line stays.'),
+        },
+      ],
+      solution: 'fRvf.ldjVjd',
+    },
+    {
+      id: '7-2',
+      ch: 7,
+      title: 'Comments',
+      story: 'gc is the comment operator. gcc toggles the current line and gcj does two lines. LazyVim adds gco, which opens a comment line below.',
+      goal: 'Comment out the debug logs and add a note under the answer.',
+      teaches: [
+        { k: 'gcc', d: 'toggle comment on line' },
+        { k: 'gc{motion}', d: 'comment a range: gcj gcip' },
+        { k: 'gco gcO', d: 'add comment below / above' },
+      ],
+      hint: 'gco puts you in Insert mode right after the //.',
+      files: [
+        {
+          name: 'answer.js',
+          text: t('‸console.log("debug 1");', 'const answer = 42;', 'console.log("debug 2");', 'console.log("debug 3");', '', 'function f() {}'),
+          target: t(
+            '// console.log("debug 1");',
+            'const answer = 42;',
+            '// the answer',
+            '// console.log("debug 2");',
+            '// console.log("debug 3");',
+            '',
+            'function f() {}'
+          ),
+        },
+      ],
+      solution: 'gccjgcothe answer<Esc>jgcj',
+    },
+    {
+      id: '7-3',
+      ch: 7,
+      title: 'Move and Indent',
+      story: 'Alt-j and Alt-k move lines down and up, also with a count or a selection. > and < indent. In LazyVim a visual indent keeps the selection, so you can press > again.',
+      goal: 'Put the lines in order inside the function and indent them.',
+      teaches: [
+        { k: '<A-j> <A-k>', d: 'move line(s) down / up' },
+        { k: '> <', d: 'indent / dedent (>> on a line)' },
+      ],
+      hint: 'G, then 3 Alt-k lifts init() three lines.',
+      files: [
+        {
+          name: 'setup.js',
+          text: t('‸function setup() {', 'start();', 'configure();', '}', 'init();'),
+          target: t('function setup() {', '  init();', '  configure();', '  start();', '}'),
+        },
+      ],
+      solution: 'G3<A-k>j<A-j>Vkk><Esc>',
+    },
+    {
+      id: '7-4',
+      ch: 7,
+      title: 'Loud and Quiet',
+      story: 'gU makes things uppercase and gu makes them lowercase. They are operators, so gUiw works on a word and guu on a line. In Visual mode, U and u do the same.',
+      goal: 'Fix the case of each line.',
+      teaches: [
+        { k: 'gUiw', d: 'uppercase word' },
+        { k: 'guu', d: 'lowercase line' },
+        { k: 'v U u ~', d: 'case in visual' },
+      ],
+      hint: 'Underscores are part of a word, so iw grabs api_key whole.',
+      files: [
+        {
+          name: 'consts.js',
+          text: t('‸const api_key = "abc";', 'THIS LINE IS SHOUTING', 'make me a constant: max_size'),
+          target: t('const API_KEY = "abc";', 'this line is shouting', 'make me a constant: MAX_SIZE'),
+        },
+      ],
+      solution: 'wgUiwjguuj$gUiw',
+    },
+
+    // ───────────── Chapter 8 ─────────────
+    {
+      id: '8-1',
+      ch: 8,
+      title: 'Squash the Squiggles',
+      story: 'The language server underlines mistakes. ]d jumps to the next diagnostic and shows the message, and [d goes back. <leader>cd shows the message for the current line.',
+      goal: 'Fix every diagnostic.',
+      teaches: [
+        { k: ']d [d', d: 'next / previous diagnostic' },
+        { k: '<leader>cd', d: 'line diagnostics' },
+      ],
+      hint: ']d, then ciw and the right word. Three times.',
+      diagnostics: [
+        { pattern: '\\bcosnt\\b', message: "Cannot find name 'cosnt'. Did you mean 'const'?" },
+        { pattern: '\\blenght\\b', message: "Property 'lenght' does not exist. Did you mean 'length'?" },
+        { pattern: '\\bretrun\\b', message: "Cannot find name 'retrun'. Did you mean 'return'?" },
+      ],
+      files: [
+        {
+          name: 'items.js',
+          text: t('‸// ]d jumps to the next red squiggle', 'cosnt items = load();', 'for (const item of items) {', '  if (item.lenght > 3) {', '    retrun item;', '  }', '}'),
+          target: t('// ]d jumps to the next red squiggle', 'const items = load();', 'for (const item of items) {', '  if (item.length > 3) {', '    return item;', '  }', '}'),
+        },
+      ],
+      solution: ']dciwconst<Esc>]dciwlength<Esc>]dciwreturn<Esc>',
+    },
+    {
+      id: '8-2',
+      ch: 8,
+      title: 'Definitions and Renames',
+      story: 'gd jumps to where a name is defined, even in another file. <leader>cr renames a symbol everywhere it is used. Space is the leader key in LazyVim. Wait a moment after pressing it and which-key shows what comes next.',
+      goal: 'Rename result to product, jump to calc\'s definition, and rename calc to multiply.',
+      teaches: [
+        { k: 'gd', d: 'go to definition' },
+        { k: '<C-o>', d: 'jump back' },
+        { k: '<leader>cr', d: 'rename symbol (Ctrl-u clears the prompt)' },
+      ],
+      hint: 'The rename prompt starts with the old name. Ctrl-u clears it.',
+      files: [
+        {
+          name: 'main.js',
+          text: t('import { calc } from "./math.js";', '', 'const ‸result = calc(2, 3);', 'console.log(result);'),
+          target: t('import { multiply } from "./math.js";', '', 'const product = multiply(2, 3);', 'console.log(product);'),
+        },
+        {
+          name: 'math.js',
+          open: false,
+          text: t('export function ¤calc(a, b) {', '  return a * b;', '}'),
+          target: t('export function multiply(a, b) {', '  return a * b;', '}'),
+        },
+      ],
+      solution: ' cr<C-u>product<CR>wwgd cr<C-u>multiply<CR>',
+    },
+    {
+      id: '8-3',
+      ch: 8,
+      title: 'Buffers and the Picker',
+      story: '<leader><space> opens the file picker. Type a few letters and press Enter. Open files sit in the bufferline at the top, and H and L move between them.',
+      goal: 'Move the finished task from todo.md to done.md, then go back to README.md and collect the gem.',
+      teaches: [
+        { k: '<leader><space>', d: 'find files' },
+        { k: 'H L', d: 'previous / next buffer' },
+        { k: '<leader>bd', d: 'close buffer' },
+        { k: '<leader>,', d: 'switch buffer' },
+      ],
+      hint: '<leader><space>, type tod, Enter. Then dd, and the same trick for done.md.',
+      files: [
+        { name: 'README.md', text: t('‸# Chores', 'Find todo.md and done.md with <leader><space>.', '¤Come back here with H when you are done.') },
+        { name: 'todo.md', open: false, text: t('# Todo', '- [x] oil the hinge', '- [ ] water the plants'), target: t('# Todo', '- [ ] water the plants') },
+        { name: 'done.md', open: false, text: t('# Done'), target: t('# Done', '- [x] oil the hinge') },
+      ],
+      solution: '  tod<CR>jdd  don<CR>p2HG',
+    },
+    {
+      id: '8-4',
+      ch: 8,
+      title: 'Search and Replace',
+      story: ':%s/old/new/g replaces in the whole file. :g/pattern/d deletes every line that matches. Both use Vim regex, where \\| means "or".',
+      goal: 'Delete the comment and debug lines, then make the team green.',
+      teaches: [
+        { k: ':%s/a/b/g', d: 'substitute in file' },
+        { k: ':g/pat/d', d: 'delete matching lines' },
+      ],
+      hint: 'One :g with ^#\\|debug removes four lines at once.',
+      files: [
+        {
+          name: 'team.toml',
+          text: t('‸# TODO: remove debug lines', 'debug = true', 'color = "blue"', 'debug_level = 3', 'title = "blue team"', '# TODO: check colors'),
+          target: t('color = "green"', 'title = "green team"'),
+        },
+      ],
+      solution: ':g/^#\\|debug/d<CR>:%s/blue/green/g<CR>',
+    },
+    {
+      id: '8-5',
+      ch: 8,
+      title: 'The Mouse King\'s Config',
+      story: 'The Mouse King left his last trap in this function. Use everything you have learned. There are many ways through, but par is tight.',
+      goal: 'Rename mouse to cursor, steal to find, use double quotes, and drop the console.log lines.',
+      teaches: [{ k: 'everything', d: 'you are ready for real LazyVim' }],
+      hint: 'f<space> and 2x for the spaces, <leader>cr for mouse, /steal and ciw, :s/\'/"/g, then 2dd.',
+      files: [
+        {
+          name: 'king.js',
+          text: t('‸function   loadKeys(mouse) {', "  const keys = mouse.steal('h', 'j', 'k', 'l');", '  console.log("stolen");', '  console.log("ha ha");', '  return keys;', '}'),
+          target: t('function loadKeys(cursor) {', '  const keys = cursor.find("h", "j", "k", "l");', '  return keys;', '}'),
+        },
+      ],
+      solution: 'f 2xfm cr<C-u>cursor<CR>/steal<CR>ciwfind<Esc>:s/\'/"/g<CR>j2dd',
+    },
+  ];
+
+  G.LazyQuestLevels = { CHAPTERS, LEVELS };
+  if (typeof module !== 'undefined') module.exports = G.LazyQuestLevels;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* LazyQuest UI: screens, editor rendering, overlays, input. */
+(function () {
+  'use strict';
+  const { Game, tok, expandSolution } = window.LazyQuest;
+  const { CHAPTERS, LEVELS } = window.LazyQuestLevels;
+  const app = document.getElementById('app');
+
+  // ---------- storage ----------
+  const store = {
+    get(k, d) {
+      try {
+        const v = localStorage.getItem('lazyquest:' + k);
+        return v ? JSON.parse(v) : d;
+      } catch (e) {
+        return d;
+      }
+    },
+    set(k, v) {
+      try {
+        localStorage.setItem('lazyquest:' + k, JSON.stringify(v));
+      } catch (e) {
+        /* storage unavailable: progress lasts for this visit only */
+      }
+    },
+  };
+
+  const S = {
+    screen: 'title',
+    progress: store.get('progress', {}),
+    settings: Object.assign({ jk: false, sound: true, unlockAll: false }, store.get('settings', {})),
+    idx: 0,
+    game: null,
+    par: 0,
+    solution: [],
+    mapSel: 0,
+    showHint: false,
+    showSol: false,
+    modal: null,
+    focused: true,
+  };
+  const PARS = {};
+  LEVELS.forEach((lv) => {
+    try {
+      PARS[lv.id] = expandSolution(lv).keys.length;
+    } catch (e) {
+      PARS[lv.id] = 99;
+    }
+  });
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const unlocked = (i) => S.settings.unlockAll || i === 0 || !!S.progress[LEVELS[i - 1].id];
+  const starsHtml = (n, total = 3) => `<span class="stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(total - n)}</span></span>`;
+  const totalStars = () => Object.values(S.progress).reduce((a, p) => a + (p.stars || 0), 0);
+  const keyLabel = (k) =>
+    ({ ' ': 'Space', '<Esc>': 'Esc', '<CR>': 'Enter', '<BS>': 'Bksp', '<Tab>': 'Tab', '<C-r>': 'Ctrl-r', '<C-u>': 'Ctrl-u', '<A-j>': 'Alt-j', '<A-k>': 'Alt-k', '<C-o>': 'Ctrl-o' }[k] ||
+    k.replace(/^<C-(.)>$/, 'Ctrl-$1').replace(/^<A-(.)>$/, 'Alt-$1'));
+  const kc = (s) => `<span class="kc">${esc(s)}</span>`;
+  const teachKey = (s) =>
+    s
+      .replace(/<leader>/g, '␣')
+      .replace(/<space>/g, '␣')
+      .replace(/<CR>/g, '⏎')
+      .replace(/<Esc>/g, 'Esc')
+      .replace(/<BS>/g, 'Bksp')
+      .replace(/<C-(.)>/g, 'Ctrl-$1')
+      .replace(/<A-(.)>/g, 'Alt-$1');
+
+  // ---------- sound ----------
+  let actx = null;
+  function beep(kind) {
+    if (!S.settings.sound) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const notes = { gem: [880, 1320], win: [523, 659, 784, 1047], nope: [180], step: [] }[kind] || [];
+      notes.forEach((f, i) => {
+        const o = actx.createOscillator();
+        const g = actx.createGain();
+        o.type = kind === 'nope' ? 'sawtooth' : 'square';
+        o.frequency.value = f;
+        const t0 = actx.currentTime + i * 0.08;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.05, t0 + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + (kind === 'win' ? 0.22 : 0.12));
+        o.connect(g).connect(actx.destination);
+        o.start(t0);
+        o.stop(t0 + 0.25);
+      });
+    } catch (e) {
+      /* audio not available */
+    }
+  }
+
+  // ---------- owl sprite ----------
+  const OWL = ['..O....O..', '.OOOOOOOO.', 'OOWWOOWWOO', 'OWEWOOWEWO', 'OOWWOYWWOO', '.OOOYYOOO.', '.OBBBBBBO.', '.OBBBBBBO.', '..OO..OO..', '..YY..YY..'];
+  const OWLC = { O: '#bb9af7', W: '#c0caf5', E: '#1a1b26', Y: '#e0af68', B: '#9d7cd8' };
+  const owlSvg = `<svg class="owl" viewBox="0 0 10 10" aria-hidden="true">${OWL.map((row, y) =>
+    [...row].map((ch, x) => (OWLC[ch] ? `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${OWLC[ch]}"/>` : '')).join('')
+  ).join('')}</svg>`;
+
+  // ---------- syntax highlight ----------
+  const KW = {
+    javascript: 'const let var function return if else for of in while new import from export async await class this true false null undefined typeof',
+    typescript: 'const let var function return if else for of in while new import from export async await class this true false null undefined typeof',
+    python: 'def return if else elif for in while import from class pass True False None and or not with as lambda print',
+    lua: 'local function end if then else elseif for do while return nil true false and or not',
+    toml: 'true false',
+  };
+  const KWS = Object.fromEntries(Object.entries(KW).map(([k, v]) => [k, new Set(v.split(' '))]));
+  function highlight(line, ft) {
+    const cls = new Array(line.length).fill('');
+    const fill = (s, e, c) => {
+      for (let i = s; i < e && i < line.length; i++) cls[i] = c;
+    };
+    if (ft === 'markdown') {
+      if (/^#/.test(line)) fill(0, line.length, 't-head');
+      else {
+        const m = line.match(/^(\s*[-*] )(\[[ x]\])?/);
+        if (m) {
+          fill(0, m[1].length, 't-punc');
+          if (m[2]) fill(m[1].length, m[0].length, 't-kw');
+        }
+      }
+      return cls;
+    }
+    if (ft === 'log') {
+      const re = /\[[\d:]+\]|ERROR|WARN|INFO/g;
+      let m;
+      while ((m = re.exec(line))) fill(m.index, m.index + m[0].length, m[0][0] === '[' ? 't-num' : m[0] === 'ERROR' ? 't-err' : m[0] === 'WARN' ? 't-warn' : 't-info');
+      return cls;
+    }
+    if (ft === 'text') return cls;
+    const cm = { javascript: '//', typescript: '//', python: '#', lua: '--', toml: '#', sh: '#' }[ft];
+    const kw = KWS[ft] || new Set();
+    let i = 0;
+    while (i < line.length) {
+      const ch = line[i];
+      if (cm && line.startsWith(cm, i)) {
+        fill(i, line.length, 't-com');
+        break;
+      }
+      if ('"\'`'.includes(ch)) {
+        let j = i + 1;
+        while (j < line.length && line[j] !== ch) j += line[j] === '\\' ? 2 : 1;
+        fill(i, j + 1, 't-str');
+        i = j + 1;
+        continue;
+      }
+      if (/[0-9]/.test(ch) && !/[\w$]/.test(line[i - 1] || '')) {
+        let j = i;
+        while (j < line.length && /[0-9.]/.test(line[j])) j++;
+        fill(i, j, 't-num');
+        i = j;
+        continue;
+      }
+      if (/[A-Za-z_$]/.test(ch)) {
+        let j = i;
+        while (j < line.length && /[\w$]/.test(line[j])) j++;
+        const w = line.slice(i, j);
+        if (kw.has(w)) fill(i, j, 't-kw');
+        else if (line[j] === '(') fill(i, j, 't-fn');
+        else if (line[i - 1] === '.') fill(i, j, 't-prop');
+        i = j;
+        continue;
+      }
+      if ('()[]{}'.includes(ch)) cls[i] = 't-brk';
+      else if (/[=+\-*/<>!&|:;,.%]/.test(ch)) cls[i] = 't-op';
+      i++;
+    }
+    return cls;
+  }
+
+  // ---------- which-key tables ----------
+  const NI = null; // shown dimmed: real LazyVim key that this game does not simulate
+  const WK = {
+    ' ': [
+      ['␣', 'Find Files'],
+      [',', 'Switch Buffer'],
+      ['`', 'Other Buffer'],
+      ['b', '+buffer', 1],
+      ['c', '+code', 1],
+      ['f', '+file/find', 1],
+      ['q', '+quit/session', 1],
+      ['s', '+search', 1],
+      ['e', 'Explorer', NI],
+      ['/', 'Grep', NI],
+      ['g', '+git', NI],
+      ['u', '+ui', NI],
+      ['w', '+windows', NI],
+      ['x', '+diagnostics/quickfix', NI],
+    ],
+    ' b': [
+      ['b', 'Switch to Other Buffer'],
+      ['d', 'Delete Buffer'],
+      ['o', 'Delete Other Buffers'],
+    ],
+    ' c': [
+      ['r', 'Rename'],
+      ['d', 'Line Diagnostics'],
+      ['a', 'Code Action', NI],
+      ['f', 'Format', NI],
+    ],
+    ' f': [
+      ['f', 'Find Files'],
+      ['b', 'Buffers'],
+      ['n', 'New File', NI],
+      ['r', 'Recent', NI],
+    ],
+    ' q': [['q', 'Quit All (back to map)']],
+    ' s': [['g', 'Grep', NI], ['w', 'Word', NI], ['r', 'Search and Replace', NI]],
+    g: [
+      ['g', 'First Line'],
+      ['d', 'Goto Definition'],
+      ['r', 'References'],
+      ['c', '+comment', 1],
+      ['s', '+surround', 1],
+      ['U', 'Uppercase'],
+      ['u', 'Lowercase'],
+      ['~', 'Toggle Case'],
+      ['e', 'Prev Word End'],
+    ],
+    gs: [
+      ['a', 'Add Surrounding'],
+      ['d', 'Delete Surrounding'],
+      ['r', 'Replace Surrounding'],
+      ['f', 'Find Right Surrounding', NI],
+      ['h', 'Highlight Surrounding', NI],
+    ],
+    gc: [
+      ['c', 'Toggle Comment Line'],
+      ['o', 'Add Comment Below'],
+      ['O', 'Add Comment Above'],
+      ['j', '…or any motion'],
+    ],
+    ']': [
+      ['d', 'Next Diagnostic'],
+      ['e', 'Next Error'],
+      [']', 'Next Reference'],
+      ['f', 'Next Function Start'],
+      ['b', 'Next Buffer'],
+      ['q', 'Next Quickfix', NI],
+    ],
+    '[': [
+      ['d', 'Prev Diagnostic'],
+      ['e', 'Prev Error'],
+      ['[', 'Prev Reference'],
+      ['f', 'Prev Function Start'],
+      ['b', 'Prev Buffer'],
+      ['q', 'Prev Quickfix', NI],
+    ],
+  };
+  const TEXTOBJ = [
+    ['w W', 'word / WORD'],
+    ['( ) b', 'parens / any bracket'],
+    ['[ ] { }', 'brackets / braces'],
+    ['" \' ` q', 'quotes / any quote'],
+    ['a', 'argument'],
+    ['f', 'function'],
+    ['u', 'function call'],
+    ['i', 'indent scope'],
+    ['g', 'entire buffer'],
+    ['d', 'digits'],
+    ['e', 'camelCase segment'],
+    ['p', 'paragraph'],
+    ['n l', 'next / last …'],
+  ];
+  const OPS = { d: 'delete', c: 'change', y: 'yank', '>': 'indent', '<': 'dedent', gc: 'comment', gU: 'uppercase', gu: 'lowercase', gsa: 'surround' };
+  function whichKeyFor(v) {
+    if (!v.gen || v.cmdline || v.flash || v.picker || v.tsnodes) return null;
+    if (v.mode !== 'normal' && v.mode !== 'visual' && v.mode !== 'vline') return null;
+    let keys = v.curKeys.slice();
+    if (v.mode !== 'normal') return null;
+    if (keys[0] === '"') keys = keys.slice(2);
+    while (keys.length && /^[0-9]$/.test(keys[0])) keys.shift();
+    const p = keys.join('');
+    if (!p) return null;
+    if (WK[p]) return { title: p === ' ' ? '<leader>' : p.replace(/^ /, '<leader>'), items: WK[p] };
+    const m = p.match(/^(d|c|y|>|<|gc|gU|gu|gsa)[0-9]*([ia])$/);
+    if (m) return { title: `${OPS[m[1]]}: ${m[2] === 'i' ? 'inside' : 'around'}`, items: TEXTOBJ.map(([k, d]) => [k, d]) };
+    if (/^(d|c|y|gU|gu|gsa)[0-9]*$/.test(p) && p !== 'g')
+      return {
+        title: `${OPS[p.replace(/[0-9]/g, '')] || 'operator'}: motion or text object`,
+        items: [
+          ['i a', 'inside / around…', 1],
+          ['w e b', 'words'],
+          ['$ 0 ^', 'line edges'],
+          ['f t', 'to a char'],
+          ['s', 'flash jump'],
+          ['r', 'remote flash'],
+          ['j k', 'lines'],
+          [p.slice(-1), 'whole line'],
+        ],
+      };
+    return null;
+  }
+
+  // ---------- screens ----------
+  function setScreen(s) {
+    S.screen = s;
+    S.modal = null;
+    render();
+  }
+  function render() {
+    if (S.screen === 'title') renderTitle();
+    else if (S.screen === 'map') renderMap();
+    else if (S.screen === 'codex') renderCodex();
+    else if (S.screen === 'level') renderLevelShell();
+  }
+
+  function topbar(extra) {
+    return `<header class="topbar">
+      <button class="brand" data-act="title" title="Title screen"><span class="blk"></span>LazyQuest</button>
+      ${extra || ''}
+      <span class="spacer"></span>
+      <span class="meter"><span class="stars">★</span> ${totalStars()} / ${LEVELS.length * 3}</span>
+      <button class="btn" data-act="map">Map <kbd>m</kbd></button>
+      <button class="btn" data-act="codex">Codex</button>
+    </header>`;
+  }
+
+  function demoEditor() {
+    const lines = [
+      ['function ', 't-kw'],
+      ['ride', 't-fn'],
+    ];
+    void lines;
+    const rows = [
+      'local quest = {',
+      '  hero = "cursor",',
+      '  keys = { "s", "gsa", "ciw" },',
+      '  mouse = false,',
+      '}',
+    ];
+    return `<div class="demo" aria-hidden="true">
+      <div class="bufferline"><span class="tab on">quest.lua</span><span class="tab">keys.lua</span></div>
+      <div class="buffer" style="min-height:0;padding:8px 0">${rows
+        .map((r, i) => {
+          const cls = highlight(r, 'lua');
+          const html = [...r]
+            .map((ch, c) => {
+              let k = cls[c];
+              if (i === 2 && c >= 13 && c <= 15) k += ' fm';
+              if (i === 2 && c === 16) return `<span class="c fl">a</span>`;
+              if (i === 1 && c === 2) k += ' cur idle';
+              return `<span class="c ${k}">${esc(ch)}</span>`;
+            })
+            .join('');
+          return `<div class="row ${i === 1 ? 'curline' : ''}"><span class="gutter">${i === 1 ? 2 : Math.abs(i - 1)}</span><span class="sign"></span><span class="text">${html}</span></div>`;
+        })
+        .join('')}</div>
+      <div class="statusline"><span class="mode m-normal">NORMAL</span><span class="sl-file">quest.lua</span><span class="sl-fill"></span><span class="sl-cmd">s"gs</span><span class="sl-pos">2:3</span></div>
+    </div>`;
+  }
+
+  function renderTitle() {
+    const started = Object.keys(S.progress).length > 0;
+    const next = LEVELS.findIndex((lv) => !S.progress[lv.id]);
+    app.innerHTML = `
+      <div class="mobile-note">LazyQuest is played with a physical keyboard. Plug one in or come back on a laptop.</div>
+      <section class="title">
+        <div>
+          <h1 class="logo"><span class="z">Lazy</span><br><span class="q">Quest</span></h1>
+          <p class="tag">Learn Vim the way <b>LazyVim</b> ships it: flash jumps, mini.surround, mini.ai text objects, auto-pairs, which-key and the picker. ${LEVELS.length} levels, 8 regions, no mouse.</p>
+          <div class="cta">
+            <button class="btn primary" data-act="${started ? 'continue' : 'start'}">${started ? 'Continue' : 'Start the quest'} <kbd>⏎</kbd></button>
+            <button class="btn" data-act="map">Level map <kbd>m</kbd></button>
+          </div>
+          <div class="settings">
+            <label><input type="checkbox" id="set-jk" ${S.settings.jk ? 'checked' : ''}> jk / kj escapes Insert mode <small>(a common personal mapping)</small></label>
+            <label><input type="checkbox" id="set-sound" ${S.settings.sound ? 'checked' : ''}> Sound effects</label>
+            <label><input type="checkbox" id="set-unlock" ${S.settings.unlockAll ? 'checked' : ''}> Unlock every level <small>(for people who already know Vim)</small></label>
+          </div>
+          <p class="note">Click inside the page first so it receives your keys. Your browser keeps Ctrl-w for itself, so this game never asks for it. Progress is saved in this browser.${started && next >= 0 ? ` Next up: ${esc(LEVELS[next].id)} ${esc(LEVELS[next].title)}.` : ''}</p>
+        </div>
+        ${demoEditor()}
+      </section>`;
+    app.querySelector('#set-jk').onchange = (e) => saveSetting('jk', e.target.checked);
+    app.querySelector('#set-sound').onchange = (e) => saveSetting('sound', e.target.checked);
+    app.querySelector('#set-unlock').onchange = (e) => saveSetting('unlockAll', e.target.checked);
+  }
+  function saveSetting(k, v) {
+    S.settings[k] = v;
+    store.set('settings', S.settings);
+  }
+
+  function renderMap() {
+    let i = 0;
+    const html = CHAPTERS.map((ch) => {
+      const lv = LEVELS.filter((l) => l.ch === ch.id);
+      const tiles = lv
+        .map((l) => {
+          const idx = LEVELS.indexOf(l);
+          const p = S.progress[l.id];
+          const lock = !unlocked(idx);
+          i++;
+          return `<button class="tile ${lock ? 'locked' : ''} ${p ? 'done' : ''} ${S.mapSel === idx ? 'sel' : ''}" data-play="${idx}" ${lock ? 'aria-disabled="true"' : ''}>
+            <span class="id">${l.id}</span><span class="nm">${esc(l.title)}</span>${lock ? '<span class="stars off">🔒</span>' : starsHtml(p ? p.stars : 0)}
+          </button>`;
+        })
+        .join('');
+      return `<section class="chapter"><span class="cn">REGION ${ch.id}</span><h2>${esc(ch.name)}</h2><p>${esc(ch.blurb)}</p><div class="tiles">${tiles}</div></section>`;
+    }).join('');
+    app.innerHTML = `${topbar()}
+      <div class="maphead"><h1>The Map of Bufferia</h1><span class="sub">Move with <span class="kc">h j k l</span> and press <span class="kc">⏎</span> to enter a level. Or click.</span></div>
+      <div class="map">${html}</div>`;
+  }
+
+  function renderCodex() {
+    const cards = CHAPTERS.map((ch) => {
+      const items = LEVELS.filter((l) => l.ch === ch.id)
+        .map((l) => {
+          const done = !!S.progress[l.id];
+          return l.teaches.map((t) => `<span class="${done ? '' : 'locked'}">${kc(teachKey(t.k))}</span><span class="d ${done ? '' : 'locked'}">${esc(t.d)}</span>`).join('');
+        })
+        .join('');
+      return `<section class="card"><h3>${esc(ch.name)}</h3><div class="teach">${items}</div></section>`;
+    }).join('');
+    app.innerHTML = `${topbar()}<div class="maphead"><h1>Codex</h1><span class="sub">Every key you have learned. Greyed keys unlock as you clear levels.</span></div><div class="codex">${cards}</div>`;
+  }
+
+  // ---------- level ----------
+  function startLevel(idx) {
+    if (!unlocked(idx)) return;
+    S.idx = idx;
+    S.mapSel = idx;
+    const lv = LEVELS[idx];
+    S.game = new Game(lv, { jk: S.settings.jk });
+    const ex = expandSolution(lv);
+    S.solution = ex.keys;
+    S.par = ex.keys.length;
+    S.showHint = false;
+    S.showSol = false;
+    S.modal = null;
+    S.notifyMsg = '';
+    S.screen = 'level';
+    renderLevelShell();
+  }
+
+  function renderLevelShell() {
+    const lv = LEVELS[S.idx];
+    const ch = CHAPTERS.find((c) => c.id === lv.ch);
+    const banned = (lv.banned || []).filter((k) => k.length < 4);
+    app.innerHTML = `${topbar(`<span class="crumb">${esc(ch.name)} · <b>${lv.id} ${esc(lv.title)}</b></span>`)}
+      <div class="mobile-note">This level needs a physical keyboard.</div>
+      <div class="level">
+        <div class="editor" id="editor" tabindex="0" aria-label="Editor. Type Vim keys here.">
+          <div class="bufferline" id="bufferline"></div>
+          <div class="buffer" id="buf"></div>
+          <div class="statusline" id="status"></div>
+          <div class="cmdrow" id="cmdrow"></div>
+          <div id="overlays"></div>
+        </div>
+        <aside class="panel">
+          <section class="card">
+            <h2 class="lvtitle">${esc(lv.title)}</h2>
+            <div class="speaker">${owlSvg}<p class="story">${esc(lv.story)}</p></div>
+            <p class="goal"><b>GOAL</b>${esc(lv.goal)}</p>
+          </section>
+          <section class="card">
+            <h3>New keys</h3>
+            <div class="teach">${lv.teaches.map((t) => `${kc(teachKey(t.k))}<span class="d">${esc(t.d)}</span>`).join('')}</div>
+            ${banned.length ? `<div class="sealed">Sealed here: ${banned.map((k) => kc(k)).join(' ')}</div>` : ''}
+          </section>
+          <section class="card" id="progress"></section>
+          <section class="card">
+            <h3>Stuck?</h3>
+            <div class="helprow">
+              <button class="btn" data-act="hint">Hint</button>
+              <button class="btn" data-act="solution">Show a solution</button>
+              <button class="btn" data-act="reset">Restart <kbd>:e!</kbd></button>
+            </div>
+            <div id="help"></div>
+          </section>
+        </aside>
+      </div>`;
+    renderEditor();
+    renderPanel();
+    renderHelp();
+    const ed = document.getElementById('editor');
+    try {
+      ed.focus({ preventScroll: true });
+    } catch (e) {
+      /* focus not permitted yet */
+    }
+  }
+
+  function renderHelp() {
+    const lv = LEVELS[S.idx];
+    const el = document.getElementById('help');
+    if (!el) return;
+    el.innerHTML =
+      (S.showHint ? `<p class="hinttext">${esc(lv.hint)}</p>` : '') +
+      (S.showSol ? `<div class="solution">${S.solution.map((k) => kc(keyLabel(k))).join('')}</div>` : '');
+  }
+
+  function renderPanel() {
+    const g = S.game;
+    const el = document.getElementById('progress');
+    if (!el) return;
+    const gems = g.gems.length ? `<div class="gemcount">Gems ${g.gems.map((x) => `<span class="g ${x.got ? '' : 'off'}">◆</span>`).join('')}</div>` : '';
+    const ts = g.targetStatus();
+    let tgt = '';
+    if (ts.length) {
+      tgt = ts
+        .map((t) => {
+          const want = t.want.split('\n');
+          const have = t.have.split('\n');
+          const lines = want.map((w, i) => `<span class="ln ${(have[i] || '').replace(/\s+$/, '') === w.replace(/\s+$/, '') ? 'ok' : 'bad'}">${esc(w) || ' '}</span>`).join('');
+          return `${ts.length > 1 ? `<div class="fname">${esc(t.name)} ${t.ok ? '✓' : ''}</div>` : ''}<pre>${lines}</pre>`;
+        })
+        .join('');
+      tgt = `<div class="target">${tgt}</div>`;
+    }
+    const best = S.progress[LEVELS[S.idx].id];
+    el.innerHTML = `<h3>${ts.length ? 'Make it look like this' : 'Collect'}</h3>${gems}${tgt}
+      <div class="meter" style="margin-top:10px"><span class="keys">keys <b>${g.keys}</b> · par <b>${S.par}</b></span>${best ? `<span class="keys">best <b>${best.keys}</b></span>` : ''}</div>`;
+  }
+
+  function renderEditor() {
+    const g = S.game;
+    if (!g) return;
+    const v = g.vim;
+    const b = v.buf;
+    const L = b.lines;
+    // bufferline
+    const bl = document.getElementById('bufferline');
+    bl.innerHTML =
+      v.open.map((f) => `<span class="tab ${f === b ? 'on' : ''}">${esc(f.name)}${f.undo.length ? '<span class="dot">●</span>' : ''}</span>`).join('') +
+      (v.files.length > v.open.length ? `<span class="ghost">+${v.files.length - v.open.length} more in the picker</span>` : '');
+
+    // visual range
+    let selS = -1,
+      selE = -1,
+      selLine = null;
+    if (v.vis) {
+      const rg = v.visRange();
+      if (rg.kind === 'line') selLine = [rg.r1, rg.r2];
+      else {
+        selS = rg.s;
+        selE = rg.e;
+      }
+    }
+    const search = {};
+    for (const m of v.searchMatches()) for (let i = 0; i < m.len; i++) search[m.r + ':' + (m.c + i)] = 1;
+    const fm = {},
+      fl = {};
+    if (v.flash) {
+      const pl = v.flash.pat.length;
+      for (const m of v.flash.matches) {
+        for (let i = 0; i < pl; i++) fm[m.r + ':' + (m.c + i)] = 1;
+        if (m.label) fl[m.r + ':' + (m.c + pl)] = m.label;
+      }
+    }
+    const tsBefore = {},
+      tsAfter = {},
+      tsIn = {};
+    if (v.tsnodes) {
+      for (const n of v.tsnodes) {
+        (tsBefore[n.s] = tsBefore[n.s] || []).push(n.label);
+        (tsAfter[n.e] = tsAfter[n.e] || []).push(n.label);
+      }
+      const n0 = v.tsnodes[v.tsnodes.length - 1];
+      for (let o = n0.s; o < n0.e; o++) tsIn[o] = 1;
+    }
+    const diags = v.diagnostics();
+    const dmap = {};
+    const drow = {};
+    for (const d of diags) {
+      for (let i = 0; i < d.len; i++) dmap[d.r + ':' + (d.c + i)] = 1;
+      if (!drow[d.r]) drow[d.r] = d;
+    }
+    const gems = {};
+    for (const x of g.gems) if (!x.got && x.file === b.name) gems[x.r + ':' + x.c] = 1;
+    const showCursor = !v.picker;
+    const insert = v.mode === 'insert';
+    let off = 0;
+    const rows = [];
+    for (let r = 0; r < L.length; r++) {
+      const line = L[r];
+      const hl = highlight(line, b.ft);
+      let extra = 0;
+      if (r === b.r) extra = Math.max(extra, b.c - line.length + 1);
+      if (line.length === 0) extra = Math.max(extra, 1);
+      for (const k of Object.keys(fl)) {
+        const [rr, cc] = k.split(':').map(Number);
+        if (rr === r && cc >= line.length) extra = Math.max(extra, cc - line.length + 1);
+      }
+      for (const k of Object.keys(gems)) {
+        const [rr, cc] = k.split(':').map(Number);
+        if (rr === r && cc >= line.length) extra = Math.max(extra, cc - line.length + 1);
+      }
+      const n = line.length + Math.max(0, extra);
+      let html = '';
+      for (let c = 0; c < n; c++) {
+        const o = off + c;
+        const key = r + ':' + c;
+        if (tsBefore[o]) html += tsBefore[o].map((l) => `<span class="tsl">${l}</span>`).join('');
+        let ch = c < line.length ? line[c] : ' ';
+        let k = 'c ' + (hl[c] || '');
+        if (selLine ? r >= selLine[0] && r <= selLine[1] : o >= selS && o < selE) k += ' sel';
+        if (search[key]) k += ' srch';
+        if (dmap[key]) k += ' diag';
+        if (tsIn[o]) k += ' tsr';
+        if (fm[key]) k += ' fm';
+        if (fl[key]) {
+          k += ' fl';
+          ch = fl[key];
+        }
+        if (gems[key]) k += ' gem' + (ch === ' ' ? ' blank' : '');
+        if (showCursor && r === b.r && c === b.c) k += ' cur' + (insert ? ' ins' : '') + (v.gen ? '' : ' idle');
+        html += `<span class="${k}" data-rc="${key}">${esc(ch)}</span>`;
+        if (tsAfter[o + 1]) html += tsAfter[o + 1].map((l) => `<span class="tsl">${l}</span>`).join('');
+      }
+      off += line.length + 1;
+      const isCur = r === b.r;
+      const num = isCur ? r + 1 : Math.abs(r - b.r);
+      const d = drow[r];
+      rows.push(
+        `<div class="row ${isCur ? 'curline' : ''}"><span class="gutter">${num}</span><span class="sign ${d ? 'err' : ''}">${d ? '●' : ''}</span><span class="text">${html}</span>${
+          d ? `<span class="vt">● ${esc(d.msg)}</span>` : ''
+        }</div>`
+      );
+    }
+    const buf = document.getElementById('buf');
+    buf.innerHTML = rows.join('');
+    buf.parentElement.classList.toggle('flash-on', !!v.flash);
+    const curEl = buf.querySelector('.cur');
+    if (curEl && curEl.scrollIntoView) curEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+    // statusline
+    const modeName = v.cmdline && v.cmdline.prefix === ':' ? 'command' : v.gen && v.mode === 'normal' && v.curKeys.length && /^(d|c|y|>|<|g[cUu~]|gsa)/.test(v.curKeys.join('').replace(/^[0-9]+/, '')) ? 'pending' : v.mode;
+    const label = { normal: 'NORMAL', insert: 'INSERT', visual: 'VISUAL', vline: 'V-LINE', command: 'COMMAND', pending: 'O-PENDING' }[modeName] || 'NORMAL';
+    document.getElementById('status').innerHTML = `<span class="mode m-${modeName}">${label}</span><span class="sl-file">${esc(b.name)}${b.undo.length ? ' ●' : ''}</span><span class="sl-fill"></span>${
+      v.recording ? `<span class="sl-rec">recording @${v.recording.reg}</span>` : ''
+    }<span class="sl-cmd">${esc(v.pending.replace(/ /g, '␣').replace(/<Esc>/g, ''))}</span><span class="sl-pos">${b.r + 1}:${b.c + 1}</span>`;
+    const cr = document.getElementById('cmdrow');
+    const bottomSearch = v.cmdline && (v.cmdline.prefix === '/' || v.cmdline.prefix === '?');
+    if (bottomSearch) cr.innerHTML = `${esc(v.cmdline.prefix + v.cmdline.text)}<span class="caret"></span>`;
+    else cr.textContent = v.cmdline ? '' : insert ? '-- INSERT --' : v.msg || (v.recording ? `recording @${v.recording.reg}` : '');
+    cr.classList.toggle('err', !!v.msgErr && !insert);
+
+    // overlays
+    let ov = '';
+    if (v.cmdline && !bottomSearch) {
+      const p = v.cmdline.prefix;
+      const isSearch = p === '/' || p === '?';
+      const title = p === ':' ? 'Cmdline' : isSearch ? 'Search' : p.replace(/:\s*$/, '');
+      const icon = p === ':' ? '❯' : isSearch ? (p === '/' ? '' : '') : '✎';
+      ov += `<div class="float noice ${isSearch ? 'search' : ''}"><span class="ttl"> ${esc(title)} </span><span class="icon">${isSearch ? esc(p) : icon}</span>${esc(v.cmdline.text)}<span class="caret"></span></div>`;
+    }
+    if (v.flash) ov += `<div class="float flashp">⚡ ${esc(v.flash.pat) || '<span style="color:var(--comment)">type a few letters of your target</span>'}</div>`;
+    if (v.tsnodes) ov += `<div class="float flashp">⚡ treesitter: pick a label</div>`;
+    if (v.picker) {
+      const p = v.picker;
+      const items = p.items
+        .map((f, i) => {
+          let hlName = esc(f.name);
+          if (p.q) {
+            let j = 0;
+            hlName = [...f.name]
+              .map((ch) => {
+                if (j < p.q.length && ch.toLowerCase() === p.q[j].toLowerCase()) {
+                  j++;
+                  return `<span class="hl">${esc(ch)}</span>`;
+                }
+                return esc(ch);
+              })
+              .join('');
+          }
+          return `<li class="${i === p.idx ? 'on' : ''}">${hlName}</li>`;
+        })
+        .join('');
+      const sel = p.items[p.idx];
+      ov += `<div class="float picker"><span class="ttl"> ${p.title} </span><div class="pl"><div class="in"><span class="p">❯</span>${esc(p.q)}<span class="caret"></span></div><ul>${items || '<li>No results</li>'}</ul></div><div class="pv">${
+        sel ? esc(sel.lines.slice(0, 14).join('\n')) : ''
+      }</div></div>`;
+    }
+    const wk = whichKeyFor(v);
+    if (wk && S.wkReady) {
+      ov += `<div class="float whichkey"><span class="ttl"> ${esc(wk.title)} </span><div class="grid">${wk.items
+        .map(([k, d, grp]) => `<span class="it ${grp === NI ? 'dim' : ''}"><span class="k">${esc(k)}</span><span class="d ${grp === 1 ? 'grp' : ''}">${esc(d)}</span></span>`)
+        .join('')}</div><div class="foot">Esc to cancel${wk.items.some((x) => x[2] === NI) ? ' · dimmed keys exist in LazyVim but not in this game' : ''}</div></div>`;
+    }
+    if (v.popup && curEl) {
+      const top = curEl.offsetTop + curEl.offsetHeight + 6 + document.getElementById('bufferline').offsetHeight;
+      const left = Math.min(curEl.offsetLeft, 320);
+      ov += `<div class="float popup ${v.popup.sev ? 'err' : ''}" style="top:${top}px;left:${left}px">${esc(v.popup.text)}</div>`;
+    }
+    if (S.notifyMsg) ov += `<div class="float notify ${S.notifyErr ? 'err' : ''}" id="notify">${esc(S.notifyMsg)}</div>`;
+    if (S.toast) ov += `<div class="toast">${S.toast}</div>`;
+    if (!S.focused) ov += `<div class="focuscover" data-act="focus">Click here to give LazyQuest your keyboard</div>`;
+    document.getElementById('overlays').innerHTML = ov;
+  }
+
+  // which-key appears after a short pause, like the real plugin
+  let wkTimer = null;
+  function scheduleWhichKey() {
+    S.wkReady = false;
+    clearTimeout(wkTimer);
+    wkTimer = setTimeout(() => {
+      S.wkReady = true;
+      if (S.screen === 'level') renderEditor();
+    }, 380);
+  }
+
+  let toastTimer = null;
+  function toast(html) {
+    S.toast = html;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      S.toast = null;
+      if (S.screen === 'level') renderEditor();
+    }, 1800);
+  }
+  let notifyTimer = null;
+  function notify(msg, err) {
+    S.notifyMsg = msg;
+    S.notifyErr = err;
+    clearTimeout(notifyTimer);
+    notifyTimer = setTimeout(() => {
+      S.notifyMsg = '';
+    }, 3200);
+  }
+
+  function sparkle(r, c) {
+    const el = document.querySelector(`#buf [data-rc="${r}:${c}"]`);
+    const ed = document.getElementById('editor');
+    if (!el || !ed) return;
+    const s = document.createElement('span');
+    s.className = 'sparkle';
+    s.textContent = '+◆';
+    const a = el.getBoundingClientRect(),
+      e = ed.getBoundingClientRect();
+    s.style.left = a.left - e.left + 'px';
+    s.style.top = a.top - e.top - 6 + 'px';
+    ed.appendChild(s);
+    setTimeout(() => s.remove(), 950);
+  }
+
+  function pressInLevel(key) {
+    const g = S.game;
+    const v = g.vim;
+    const prevMsg = v.msg;
+    const ok = g.press(key);
+    if (!ok && g.rejected) {
+      beep('nope');
+      toast(`<b>${esc(keyLabel(g.rejected))}</b> is sealed in this level`);
+    }
+    // events from the engine (:q, :e!, <leader>qq)
+    const evs = v.events.splice(0);
+    for (const ev of evs) {
+      if (ev === 'quit') return setScreen('map');
+      if (ev === 'reset') return startLevel(S.idx);
+      if (ev === 'help') S.showHint = true;
+    }
+    if (v.msg && v.msg !== prevMsg && /Renamed|written|substitutions/.test(v.msg)) notify(v.msg);
+    const got = g.lastGems || [];
+    renderEditor();
+    renderPanel();
+    renderHelp();
+    if (got.length) {
+      beep('gem');
+      got.forEach((x) => sparkle(x.r, x.c));
+    }
+    if (whichKeyFor(v)) scheduleWhichKey();
+    else S.wkReady = false;
+    if (g.won) finishLevel();
+  }
+
+  function finishLevel() {
+    const g = S.game;
+    const lv = LEVELS[S.idx];
+    const stars = g.stars(S.par);
+    const prev = S.progress[lv.id];
+    S.progress[lv.id] = { stars: Math.max(stars, prev ? prev.stars : 0), keys: Math.min(g.keys, prev ? prev.keys : Infinity) };
+    store.set('progress', S.progress);
+    beep('win');
+    S.modal = 'win';
+    const last = S.idx === LEVELS.length - 1;
+    const m = document.createElement('div');
+    m.className = 'modal';
+    m.innerHTML = `<div class="win" role="dialog" aria-label="Level complete">
+      <h2>${last ? 'Bufferia is free' : 'Gate opened'}</h2>
+      <div class="bigstars">${'★'.repeat(stars)}<span class="off">${'★'.repeat(3 - stars)}</span></div>
+      <p>${g.keys} keys · par ${S.par}${g.keys <= S.par ? ' · at or under par' : stars === 2 ? ' · close to par' : ' · try for fewer keys'}</p>
+      <div class="learned">${lv.teaches.map((t) => kc(teachKey(t.k))).join('')}</div>
+      ${last ? '<p>You beat the Mouse King. Everything here works the same in real LazyVim, so go and use it.</p>' : ''}
+      <div class="row2">
+        ${last ? '' : '<button class="btn primary" data-act="next">Next level <kbd>⏎</kbd></button>'}
+        <button class="btn" data-act="retry">Retry <kbd>r</kbd></button>
+        <button class="btn" data-act="map">Map <kbd>m</kbd></button>
+      </div></div>`;
+    document.body.appendChild(m);
+  }
+  function closeModal() {
+    S.modal = null;
+    document.querySelectorAll('.modal').forEach((x) => x.remove());
+  }
+
+  // ---------- input ----------
+  function keyName(e) {
+    if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'AltGraph', 'Dead'].includes(e.key)) return null;
+    if (e.metaKey) return null;
+    const named = { Escape: '<Esc>', Enter: '<CR>', Backspace: '<BS>', Tab: '<Tab>', ArrowLeft: '<Left>', ArrowRight: '<Right>', ArrowUp: '<Up>', ArrowDown: '<Down>', Delete: '<Del>', Home: '<Home>', End: '<End>' };
+    if (named[e.key]) return named[e.key];
+    if (e.ctrlKey && e.altKey) return e.key.length === 1 ? e.key : null; // AltGr
+    if (e.ctrlKey) {
+      if (e.key === '[') return '<Esc>';
+      if (e.key === ' ') return '<C-space>';
+      const m = e.code && e.code.match(/^Key([A-Z])$/);
+      if (m) return '<C-' + m[1].toLowerCase() + '>';
+      return null;
+    }
+    if (e.altKey) {
+      const m = e.code && e.code.match(/^Key([A-Z])$/);
+      return m ? '<A-' + m[1].toLowerCase() + '>' : null;
+    }
+    return e.key.length === 1 ? e.key : null;
+  }
+
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.target && e.target.tagName === 'INPUT') return;
+      const k = keyName(e);
+      if (!k) return;
+      if (S.modal === 'win') {
+        e.preventDefault();
+        if (k === '<CR>' || k === 'n') {
+          closeModal();
+          if (S.idx < LEVELS.length - 1) startLevel(S.idx + 1);
+          else setScreen('map');
+        } else if (k === 'r') {
+          closeModal();
+          startLevel(S.idx);
+        } else if (k === 'm' || k === '<Esc>') {
+          closeModal();
+          setScreen('map');
+        }
+        return;
+      }
+      if (S.screen === 'level' && S.game) {
+        e.preventDefault();
+        S.focused = true;
+        pressInLevel(k);
+        return;
+      }
+      if (S.screen === 'title') {
+        if (k === '<CR>') {
+          e.preventDefault();
+          act(Object.keys(S.progress).length ? 'continue' : 'start');
+        } else if (k === 'm') setScreen('map');
+        return;
+      }
+      if (S.screen === 'map' || S.screen === 'codex') {
+        if (k === 'm' && S.screen === 'codex') return setScreen('map');
+        if (S.screen === 'codex') {
+          if (k === '<Esc>') setScreen('map');
+          return;
+        }
+        const cur = LEVELS[S.mapSel];
+        const sameCh = LEVELS.map((l, i) => [l, i]).filter(([l]) => l.ch === cur.ch);
+        const pos = sameCh.findIndex(([, i]) => i === S.mapSel);
+        let ni = S.mapSel;
+        if (k === 'j' || k === '<Down>') ni = sameCh[Math.min(sameCh.length - 1, pos + 1)][1];
+        else if (k === 'k' || k === '<Up>') ni = sameCh[Math.max(0, pos - 1)][1];
+        else if (k === 'l' || k === '<Right>' || k === 'h' || k === '<Left>') {
+          const nc = Math.max(1, Math.min(CHAPTERS.length, cur.ch + (k === 'l' || k === '<Right>' ? 1 : -1)));
+          const list = LEVELS.map((l, i) => [l, i]).filter(([l]) => l.ch === nc);
+          ni = list[Math.min(pos, list.length - 1)][1];
+        } else if (k === 'gg' || k === 'g') ni = 0;
+        else if (k === 'G') ni = LEVELS.length - 1;
+        else if (k === '<CR>' || k === ' ') {
+          e.preventDefault();
+          if (unlocked(S.mapSel)) startLevel(S.mapSel);
+          return;
+        } else if (k === '<Esc>') return setScreen('title');
+        else return;
+        e.preventDefault();
+        S.mapSel = ni;
+        renderMap();
+        const sel = app.querySelector('.tile.sel');
+        if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest' });
+      }
+    },
+    true
+  );
+
+  function act(a, el) {
+    if (a === 'title') return setScreen('title');
+    if (a === 'map') {
+      closeModal();
+      return setScreen('map');
+    }
+    if (a === 'codex') return setScreen('codex');
+    if (a === 'start') return startLevel(0);
+    if (a === 'continue') {
+      const next = LEVELS.findIndex((lv) => !S.progress[lv.id]);
+      return next >= 0 ? startLevel(next) : setScreen('map');
+    }
+    if (a === 'next') {
+      closeModal();
+      return S.idx < LEVELS.length - 1 ? startLevel(S.idx + 1) : setScreen('map');
+    }
+    if (a === 'retry' || a === 'reset') {
+      closeModal();
+      return startLevel(S.idx);
+    }
+    if (a === 'hint') {
+      S.showHint = !S.showHint;
+      return renderHelp();
+    }
+    if (a === 'solution') {
+      S.showSol = !S.showSol;
+      return renderHelp();
+    }
+    if (a === 'focus') {
+      S.focused = true;
+      renderEditor();
+    }
+    void el;
+  }
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-act],[data-play]');
+    if (!t) {
+      if (S.screen === 'level' && e.target.closest('#editor')) {
+        S.focused = true;
+        renderEditor();
+      }
+      return;
+    }
+    if (t.dataset.play !== undefined) {
+      const i = +t.dataset.play;
+      S.mapSel = i;
+      if (unlocked(i)) startLevel(i);
+      else renderMap();
+    } else act(t.dataset.act, t);
+    if (t.blur) t.blur();
+  });
+
+  window.addEventListener('blur', () => {
+    S.focused = false;
+    if (S.screen === 'level') renderEditor();
+  });
+  window.addEventListener('focus', () => {
+    S.focused = true;
+    if (S.screen === 'level') renderEditor();
+  });
+
+  try {
+    S.focused = document.hasFocus();
+  } catch (e) {
+    S.focused = true;
+  }
+  render();
+})();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+dist/
+test/shots/
+test/chrprofile*/
+test/page.html
+test/cases.json
+test/out.json
